@@ -1,0 +1,6 @@
+[submodule "ext_modules/transformers"]
+	path = ext_modules/transformers
+	url = https://github.com/huggingface/transformers.git
+[submodule "ext_modules/bert-base-cased"]
+	path = ext_modules/bert-base-cased
+	url = https://huggingface.co/bert-base-cased
