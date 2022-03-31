@@ -1,0 +1,6 @@
+*.vscode
+*.idea
+
+writting/*.pdf
+writting/*.log
+writting/*.aux
