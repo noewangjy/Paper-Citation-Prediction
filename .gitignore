@@ -1,6 +1,10 @@
 *.vscode
 *.idea
+*.DS_Store
 
 writting/*.pdf
 writting/*.log
 writting/*.aux
+
+*submission*.csv
+*pseudo_*.pth
