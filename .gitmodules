@@ -4,3 +4,6 @@
 [submodule "ext_modules/bert-base-cased"]
 	path = ext_modules/bert-base-cased
 	url = https://huggingface.co/bert-base-cased
+[submodule "ext_modules/dgl"]
+	path = ext_modules/dgl
+	url = https://github.com/dmlc/dgl.git
