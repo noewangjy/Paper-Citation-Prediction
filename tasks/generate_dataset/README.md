@@ -1,6 +1,7 @@
 # Generate Dataset
 
 This task aims to generate a dataset from:
+
 - `edgelist.txt`
 - `authors.txt`
 - `abstracts.txt`
@@ -22,12 +23,14 @@ The converted dataset is a collective of numpy arrays
 
 ```python
 import pickle
+
 with open('nullptr_train.pkl', 'rb') as f:
-    data =  pickle.load(f)
+    data = pickle.load(f)
 ```
 
 ```python
 import numpy as np
+
 npzfile = np.load('nullptr_train.npz')
 keys = npzfile.keys()
 ```

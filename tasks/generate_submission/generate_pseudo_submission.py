@@ -6,6 +6,7 @@ import torch.nn as nn
 from src.utlis import evaluate_model_checkpoint, generate_submission
 from src.models import PseudoModel
 
+
 class PseudoModel(nn.Module):
     def __init__(self):
         super().__init__()

@@ -10,7 +10,8 @@ You can install `dgl` from conda with CUDA support
 conda install -c dglteam dgl-cuda11.3
 ```
 
-For CPU only version, run: 
+For CPU only version, run:
+
 ```shell
 conda install -c dglteam dgl
 ```
