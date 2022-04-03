@@ -89,12 +89,19 @@ class NetworkDatasetEdge(NetworkDatasetBase):
     edge_feature_dim: int = 5
 
     def __init__(self, dataset_path: str, dtype=torch.float32):
-        super(NetworkDatasetBase, self).__init__(dataset_path)
+        NetworkDatasetBase.__init__(self, dataset_path)
         self.dtype = dtype
         self.length = len(self.edge_features)
 
+    @property
+    def feature_dim(self) -> int:
+        return self.edge_features.shape[1] + 3
+
     def __getitem__(self, item):
-        return torch.tensor([self.u[item], self.v[item], self.edge_features[item]]).to(self.dtype)
+        return torch.cat([torch.tensor([self.u[item],
+                                        self.v[item]]),
+                          torch.tensor(self.edge_features[item]),
+                          torch.tensor([self.y[item]])]).to(self.dtype)
 
 
 class NetworkDatasetNode(NetworkDatasetBase):
@@ -102,9 +109,13 @@ class NetworkDatasetNode(NetworkDatasetBase):
     dtype: torch.dtype
 
     def __init__(self, dataset_path: str, dtype=torch.float32):
-        super(NetworkDatasetBase, self).__init__(dataset_path)
+        NetworkDatasetBase.__init__(self, dataset_path)
         self.dtype = dtype
         self.length = len(self.edge_features)
+
+    @property
+    def feature_dim(self) -> int:
+        return self.node_features.shape[1]
 
     def __getitem__(self, item):
         return torch.tensor([self.node_features[item]]).to(self.dtype)
