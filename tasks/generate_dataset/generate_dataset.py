@@ -132,6 +132,7 @@ if __name__ == '__main__':
     SEED = 0
     PREFIX: str = 'nullptr'
     GENERATE_NODE_FEATURE: bool = True
+    GENERATE_EDGE_FEATURE: bool = False
 
     # <<<<<< End modify parameters <<<<<<
     if GENERATE_NODE_FEATURE:
@@ -222,9 +223,10 @@ if __name__ == '__main__':
     datasets['test']['y'] = - np.ones_like(datasets['test']['u'])  # The label of test_set is unknown
 
     # Build edge features
-    print(f"Generating edge features")
-    for name in datasets.keys():
-        datasets[name]['edge_features'] = generate_edge_features(datasets[name], graph, len(datasets[name]['u']))
+    if GENERATE_EDGE_FEATURE:
+        print(f"Generating edge features")
+        for name in datasets.keys():
+            datasets[name]['edge_features'] = generate_edge_features(datasets[name], graph, len(datasets[name]['u']))
 
     # Saving
     print(f"Saving to {OUTPUT_PATH}")
