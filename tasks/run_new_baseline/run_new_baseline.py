@@ -1,4 +1,4 @@
-from src.utlis import NetworkDataset, generate_submission
+from src.utlis import NetworkDatasetEdge, generate_submission
 from sklearn.linear_model import LogisticRegression
 import sklearn.metrics as metrics
 import csv
@@ -18,19 +18,19 @@ def calculate_score(clf, X_dev, y_dev):
 
 
 if __name__ == '__main__':
-    train_set = NetworkDataset('../../data/converted/nullptr_train.pkl')
-    dev_set = NetworkDataset('../../data/converted/nullptr_dev.pkl')
-    test_set = NetworkDataset('../../data/converted/nullptr_test.pkl')
+    train_set = NetworkDatasetEdge('../../data/converted/nullptr_train.pkl')
+    dev_set = NetworkDatasetEdge('../../data/converted/nullptr_dev.pkl')
+    test_set = NetworkDatasetEdge('../../data/converted/nullptr_test.pkl')
 
     # Read test data. Each sample is a pair of nodes
-    X_train = train_set.cache[:, :train_set.feature_dim]
-    y_train = train_set.cache[:, train_set.feature_dim:].ravel()
+    X_train = train_set.edge_features[:, :train_set.edge_feature_dim]
+    y_train = train_set.edge_features[:, train_set.edge_feature_dim:].ravel()
 
-    X_dev = dev_set.cache[:, :dev_set.feature_dim]
-    y_dev = dev_set.cache[:, dev_set.feature_dim:].ravel()
+    X_dev = dev_set.edge_features[:, :dev_set.edge_feature_dim]
+    y_dev = dev_set.edge_features[:, dev_set.edge_feature_dim:].ravel()
 
     # Create the test matrix. Use the same 4 features as above
-    X_test = test_set.cache[:, :test_set.feature_dim]
+    X_test = test_set.edge_features[:, :test_set.edge_feature_dim]
     print('Size of training matrix:', X_test.shape)
 
     # Use logistic regression to predict if two nodes are linked by an edge
