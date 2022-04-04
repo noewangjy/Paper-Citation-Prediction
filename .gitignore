@@ -8,3 +8,4 @@ writting/*.aux
 
 *submission*.csv
 *pseudo_*.pth
+*.pkl
