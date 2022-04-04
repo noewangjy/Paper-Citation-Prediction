@@ -1,3 +1,2 @@
 from .PseudoModel import PseudoModel
-from .GraphSAGE import MLPPredictor, DotPredictor, GraphSAGEBert
 from .MLPBert import MLPBert

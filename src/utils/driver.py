@@ -7,7 +7,6 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset
 from transformers import AutoTokenizer
-import torch.nn.functional as torch_f
 
 
 class NetworkDatasetBase(Dataset, ABC):
@@ -121,7 +120,7 @@ class NetworkDatasetEdge(NetworkDatasetBase):
                           torch.tensor([self.y[item]])]).to(self.dtype)
 
 
-class NetworkDatasetSAGEBert(NetworkDatasetBase):
+class NetworkDatasetMLPBert(NetworkDatasetBase):
     length: int
 
     def __init__(self,
@@ -259,7 +258,7 @@ if __name__ == '__main__':
     # print(len(train_driver))
     # train_driver = NetworkDatasetPassageMatching('../../data/neo_converted/nullptr_train.pkl')
     tokenizer = AutoTokenizer.from_pretrained('bert-base-uncased')
-    train_driver = NetworkDatasetSAGEBert('../../data/neo_converted/nullptr_no_feature_train.pkl', tokenizer)
+    train_driver = NetworkDatasetMLPBert('../../data/neo_converted/nullptr_no_feature_train.pkl', tokenizer)
     from torch.utils.data import DataLoader
 
     train_loader = DataLoader(train_driver, batch_size=32)

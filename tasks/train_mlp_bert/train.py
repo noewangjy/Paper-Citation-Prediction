@@ -12,7 +12,7 @@ from torch.utils.data import DataLoader
 from transformers import AutoTokenizer
 
 from src.models import MLPBert
-from src.utils.driver import NetworkDatasetSAGEBert
+from src.utils.driver import NetworkDatasetMLPBert
 
 
 # def compute_loss(pos_score: torch.Tensor, neg_score: torch.Tensor):
@@ -42,14 +42,14 @@ def prepare_graph(cfg,
                   tokenizer: AutoTokenizer,
                   device: torch.device = torch.device('cpu')) -> {}:
     print("Preparing graphs - Unpickling")
-    graphs = {'train_set': NetworkDatasetSAGEBert(to_absolute_path(cfg.train_dataset_path),
-                                                  tokenizer,
-                                                  cfg.author_token_length,
-                                                  cfg.abstract_token_length),
-              'dev_set': NetworkDatasetSAGEBert(to_absolute_path(cfg.dev_dataset_path),
-                                                tokenizer,
-                                                cfg.author_token_length,
-                                                cfg.abstract_token_length)
+    graphs = {'train_set': NetworkDatasetMLPBert(to_absolute_path(cfg.train_dataset_path),
+                                                 tokenizer,
+                                                 cfg.author_token_length,
+                                                 cfg.abstract_token_length),
+              'dev_set': NetworkDatasetMLPBert(to_absolute_path(cfg.dev_dataset_path),
+                                               tokenizer,
+                                               cfg.author_token_length,
+                                               cfg.abstract_token_length)
               }
     print("Preparing graphs - Creating sub graphs")
     graphs['num_nodes'] = graphs['train_set'].graph.number_of_nodes()
@@ -242,7 +242,7 @@ def run(cfg):
                          max_epochs=cfg.train.max_epochs,
                          callbacks=[checkpoint_callback,
                                     TQDMProgressBar(refresh_rate=10)],
-                         checkpoint_callback=True,
+                         enable_checkpointing=True,
                          # progress_bar_refresh_rate=10,
                          default_root_dir=cfg.io.checkpoint_dir,
                          logger=logger)
