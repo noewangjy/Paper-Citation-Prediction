@@ -1,4 +1,4 @@
-from src.utlis import NetworkDatasetEdge, generate_submission
+from src.utils import NetworkDatasetEdge, generate_submission
 from sklearn.linear_model import LogisticRegression
 import sklearn.metrics as metrics
 import csv
