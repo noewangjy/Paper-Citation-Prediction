@@ -237,7 +237,7 @@ class NetworkDatasetPassageMatching(NetworkDatasetBase):
 
         return {'item': item,
                 'authors': ','.join(self.authors[item]),
-                'abstract': self.abstracts[item],
+                'abstracts': self.abstracts[item],
                 'pos_passages': torch.tensor(pos_passage_idx_list),
                 'neg_passages': torch.tensor(neg_passage_idx_list),
                 'pos_authors': pos_authors,
