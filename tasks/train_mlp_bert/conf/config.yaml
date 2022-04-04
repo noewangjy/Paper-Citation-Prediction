@@ -1,0 +1,23 @@
+io:
+  log_dir: './logs'
+  checkpoint_dir: './checkpoints'
+  num_checkpoints: 3
+
+model:
+  bert_model_name: 'bert-base-uncased'
+  bert_num_feature: 768
+
+dataset:
+  train_dataset_path: '../../data/neo_converted/nullptr_no_feature_train.pkl'
+  dev_dataset_path: '../../data/neo_converted/nullptr_no_feature_dev.pkl'
+  author_token_length: 128
+  abstract_token_length: 256
+
+train:
+  batch_size: 32
+  lr: 0.0001
+  max_epochs: 10
+
+defaults:
+  - _self_
+  - machine: goodnews
