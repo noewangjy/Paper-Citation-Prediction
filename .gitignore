@@ -1,6 +1,7 @@
 *.vscode
 *.idea
 *.DS_Store
+*.log
 
 writting/*.pdf
 writting/*.log
@@ -9,3 +10,6 @@ writting/*.aux
 *submission*.csv
 *pseudo_*.pth
 *.pkl
+
+tasks/passage_matching/checkpoints
+tasks/passage_matching/outputs
