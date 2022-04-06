@@ -18,16 +18,16 @@ def calculate_score(clf, X_dev, y_dev):
 
 
 if __name__ == '__main__':
-    train_set = NetworkDatasetEdge('../../data/converted/nullptr_train.pkl')
-    dev_set = NetworkDatasetEdge('../../data/converted/nullptr_dev.pkl')
-    test_set = NetworkDatasetEdge('../../data/converted/nullptr_test.pkl')
+    train_set = NetworkDatasetEdge('../../data/neo_converted/nullptr_whole.pkl')
+    dev_set = NetworkDatasetEdge('../../data/neo_converted/nullptr_dev.pkl')
+    test_set = NetworkDatasetEdge('../../data/neo_converted/nullptr_test.pkl')
 
     # Read test data. Each sample is a pair of nodes
     X_train = train_set.edge_features[:, :train_set.edge_feature_dim]
-    y_train = train_set.edge_features[:, train_set.edge_feature_dim:].ravel()
+    y_train = train_set.y.ravel()
 
     X_dev = dev_set.edge_features[:, :dev_set.edge_feature_dim]
-    y_dev = dev_set.edge_features[:, dev_set.edge_feature_dim:].ravel()
+    y_dev = dev_set.y.ravel()
 
     # Create the test matrix. Use the same 4 features as above
     X_test = test_set.edge_features[:, :test_set.edge_feature_dim]
