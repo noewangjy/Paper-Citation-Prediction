@@ -1,2 +1,2 @@
 gpus: [ 0 ]
-num_workers: 2
+num_workers: 4

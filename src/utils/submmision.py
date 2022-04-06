@@ -4,11 +4,13 @@ from typing import Union
 
 import numpy as np
 import torch
+import tqdm
 
 
 def generate_submission(output_dir: str, pred: Union[np.ndarray, torch.Tensor]):
     assert len(pred.shape) == 1 or (len(pred.shape) == 2 and pred.shape[1] == 0), ValueError(f"Expect pred to be a vector")
-    assert pred.shape[0] == 106692, ValueError(f"Expect pred to have length 106692 but have {pred.shape[0]}")
+    if not pred.shape[0] == 106692:
+        print(f"Expect pred to have length 106692 but have {pred.shape[0]}")
 
     if isinstance(pred, torch.Tensor):
         pred = pred.detach().cpu().numpy()
@@ -17,11 +19,12 @@ def generate_submission(output_dir: str, pred: Union[np.ndarray, torch.Tensor]):
         os.makedirs(output_dir)
 
     results = zip(range(len(pred)), pred)
-    with open(os.path.join(output_dir, 'submission.csv'), 'w') as f:
-        csv_out = csv.writer(f)
-        csv_out.writerow(['id', 'predicted'])
-        for row in results:
-            csv_out.writerow(row)
+    with tqdm.tqdm(range(len(pred))) as pbar:
+        with open(os.path.join(output_dir, 'submission.csv'), 'w') as f:
+            f.write('id,predicted\n')
+            for idx, row in enumerate(results):
+                f.write(f"{row[0]},{row[1]}\n")
+                if idx % 1e3 == 0: pbar.update(1e3)
 
 
 if __name__ == '__main__':

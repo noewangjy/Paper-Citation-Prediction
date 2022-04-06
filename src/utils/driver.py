@@ -161,7 +161,7 @@ class NetworkDatasetMLPBert(NetworkDatasetBase):
                v_authors, \
                u_abstract, \
                v_abstract, \
-               y
+               torch.tensor([y], dtype=torch.int64)
 
     @property
     def keys(self):
