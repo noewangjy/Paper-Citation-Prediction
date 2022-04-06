@@ -1,0 +1,22 @@
+
+model_name_or_path:
+config_name:
+cache_dir:
+hidden_size: 768
+project_dim: 0
+max_sequence_length: 512
+dropout: 0.1
+
+
+fix_q_encoder: False
+fix_p_encoder: False
+
+special_tokens:
+pad_to_max: True
+
+
+
+
+
+
+

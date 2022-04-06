@@ -6,7 +6,7 @@ import numpy as np
 import torch
 
 
-def generate_submission(output_dir: str, pred: Union[np.ndarray, torch.Tensor]):
+def generate_submission(output_dir: str, pred: Union[np.ndarray, torch.Tensor], tag: str = ""):
     assert len(pred.shape) == 1 or (len(pred.shape) == 2 and pred.shape[1] == 0), ValueError(f"Expect pred to be a vector")
     assert pred.shape[0] == 106692, ValueError(f"Expect pred to have length 106692 but have {pred.shape[0]}")
 
@@ -17,7 +17,7 @@ def generate_submission(output_dir: str, pred: Union[np.ndarray, torch.Tensor]):
         os.makedirs(output_dir)
 
     results = zip(range(len(pred)), pred)
-    with open(os.path.join(output_dir, 'submission.csv'), 'w') as f:
+    with open(os.path.join(output_dir, tag + 'submission_.csv'), 'w') as f:
         csv_out = csv.writer(f)
         csv_out.writerow(['id', 'predicted'])
         for row in results:
