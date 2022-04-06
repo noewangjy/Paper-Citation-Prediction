@@ -1,0 +1,14 @@
+state_dict_path: '/disk1/home/yutong/DataChallenge-graph/tasks/train_graph_sage/outputs/2022-04-06/18-41-15/checkpoints/epoch=999-val_avg_loss=0.4858.ckpt'
+test_dataset_path: '../../data/neo_converted/nullptr_no_feature_test.pkl'
+train_dataset_path: '../../data/neo_converted/nullptr_no_feature_train.pkl'
+
+features_path: '../../data/abstract_features/features.pkl'
+
+model:
+  predictor: 'dot'
+  aggregator: 'mean'
+  hidden_dims: 512
+
+defaults:
+  - _self_
+  - machine: goodnews

@@ -1,19 +1,19 @@
+import json
 import os
 import pickle
 import sys
 from typing import Dict, List, Tuple
-import json
 
 import networkx as nx
 import numpy as np
-import tqdm
 import torch
-
-from transformers import AutoModel, AutoConfig, AutoTokenizer
+import tqdm
+from transformers import AutoModel, AutoTokenizer
 
 
 def read_abstracts(abstracts_path: str) -> np.ndarray:
     def split_fn(line: str) -> List[str]:
+        line = line.replace('\n', '')
         index, abstract = line.split('|--|')
         return abstract
 
