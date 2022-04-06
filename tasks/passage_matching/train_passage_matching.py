@@ -8,6 +8,8 @@ from src.utils import NetworkDatasetPassageMatching
 
 @hydra.main(config_path="conf", config_name="config")
 def main(args):
+    if not args.train.no_cuda:
+        torch.backends.cudnn.benchmark = True
 
     trainer = BiEncoderTrainer(args=args)
 
