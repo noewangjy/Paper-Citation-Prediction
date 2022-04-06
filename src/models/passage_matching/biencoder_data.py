@@ -16,13 +16,13 @@ class BiEncoderSample(object):
         # It's OK if there is no hard negative ones
         self.hard_negative_passages: List[BiEncoderPassage] = hard_negative_passages
 
-
+# make sure the batch is on device cpu
 def convert_data_to_sample(batch: Dict) -> List[BiEncoderSample]:
     query_indices = batch["item"]
     query_authors = batch["authors"]
     query_abstracts = batch["abstracts"]
-    pos_indices = batch["pos_passages"].detach().numpy()
-    neg_indices = batch["neg_passages"].detach().numpy()
+    pos_indices = batch["pos_passages"].detach().cpu().numpy()
+    neg_indices = batch["neg_passages"].detach().cpu().numpy()
     pos_authors = batch["pos_authors"]
     pos_abstracts = batch["pos_abstracts"]
     neg_authors = batch["neg_authors"]

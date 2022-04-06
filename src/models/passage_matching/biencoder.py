@@ -14,17 +14,18 @@ import torch.nn.functional as F
 from .model_utils import CheckpointState
 from .data_utils import Tensorizer
 from .biencoder_data import BiEncoderSample
+
 # from .modeling import BertTensorizer
+
 
 BiEncoderBatch = collections.namedtuple(
     "BiEncoderInput",
     [
-        "query_passage_ids",
-        "query_passage_segments",
+        "query_ids",
+        "query_segments",
         "passage_ids",
         "passage_segments",
-        "positive_passage_indices",
-        "hard_negative_passage_indices",
+        "labels",
         "encoder_type"
     ]
 )
@@ -33,9 +34,9 @@ BiEncoderBatch = collections.namedtuple(
 def dot_product_scores(q_vectors: T, p_vectors: T):
     """
     calculates the dot product scores between query vectors and passage vectors
-    :param q_vectors: n1 x D
-    :param p_vectors: n2 x D
-    :return result: n1 x n2
+    :param q_vectors: batch_size x hidden_size
+    :param p_vectors: batch_size x hidden_size
+    :return result: batch_size x batch_size
     """
     result = torch.matmul(q_vectors, torch.transpose(p_vectors, 0, 1))
     return result
@@ -141,66 +142,33 @@ class BiEncoder(nn.Module):
             self,
             samples: List[BiEncoderSample],
             tensorizer: Tensorizer,
-            num_negatives: int = 0,
-            num_hard_negatives: int = 0,
-            shuffle: bool = False,
-            shuffle_positives: bool = False,
     ) -> BiEncoderBatch:
 
         query_tensors = []
         passage_tensors = []
-        positive_passage_indices = []
-        hard_negative_passage_indices = []
+        # label_tensors.size() = [batch_size * batch_size]
+        label_tensors = torch.eye(len(samples)).view(-1, 1)
 
         for sample in samples:
+            query_psg = sample.query_passage
+            positive_psg = sample.positive_passages[np.random.choice(len(sample.positive_passages))]
+            query_tensors.append(tensorizer.text_to_tensor(query_psg.abstract))
+            passage_tensors.append(tensorizer.text_to_tensor(positive_psg.abstract))
 
-            # Get 1 positive passage randomly or certainly
-            if shuffle and shuffle_positives:
-                positive_psgs = sample.positive_passages
-                positive_psg = positive_psgs[np.random.choice(len(positive_psgs))]
-            else:
-                positive_psg = sample.positive_passages[0]
-
-            negative_psgs = sample.negative_passages
-            hard_neg_psgs = sample.hard_negative_passages
-            query_passage = sample.query_passage
-
-            if shuffle:
-                random.shuffle(negative_psgs)
-                random.shuffle(hard_neg_psgs)
-
-            negative_psgs = negative_psgs[:num_negatives]
-            hard_neg_psgs = hard_neg_psgs[:num_hard_negatives]
-
-            all_psgs = [positive_psg] + negative_psgs + hard_neg_psgs
-            hard_neg_start_idx = 1
-            hard_neg_end_idx = 1 + len(hard_neg_psgs)
-
-            current_psgs_len = len(passage_tensors)
-
-            sample_psg_tensors = [tensorizer.text_to_tensor(psg.abstract) for psg in all_psgs]
-
-            passage_tensors.extend(sample_psg_tensors)
-            positive_passage_indices.append(current_psgs_len)
-            hard_negative_passage_indices.append(
-                list(range(current_psgs_len + hard_neg_start_idx, current_psgs_len + hard_neg_end_idx))
-            )
-
-            query_tensors.append(tensorizer.text_to_tensor(query_passage.abstract))
-
+        # passage_tensors.size() = [batch_size, max_seq_len]
         passage_tensors = torch.cat([psg.view(1, -1) for psg in passage_tensors], dim=0)
+        # query_tensors.size() = [batch_size, max_seq_len]
         query_tensors = torch.cat([q.view(1, -1) for q in query_tensors], dim=0)
 
         passage_segments = torch.zeros_like(passage_tensors)
         query_segments = torch.zeros_like(query_tensors)
 
         return BiEncoderBatch(
-            query_passage_ids=query_tensors,
-            query_passage_segments=query_segments,
+            query_ids=query_tensors,
+            query_segments=query_segments,
             passage_ids=passage_tensors,
             passage_segments=passage_segments,
-            positive_passage_indices=positive_passage_indices,
-            hard_negative_passage_indices=hard_negative_passage_indices,
+            labels=label_tensors,
             encoder_type="query"
         )
 
@@ -211,7 +179,7 @@ class BiEncoder(nn.Module):
         return self.state_dict()
 
 
-class BiEncoderNllLoss(object):
+class BiEncoderCELoss(object):
 
     @staticmethod
     def get_scores(q_vectors: T, p_vectors: T) -> T:
@@ -222,42 +190,19 @@ class BiEncoderNllLoss(object):
             self,
             q_vectors: T,
             p_vectors: T,
-            positive_indices: list,
-            hard_negative_indices: list = None,
+            labels: T,
             loss_scale: float = None,
     ) -> Tuple[T, int]:
-
+        # scores.size() = [batch_size, batch_size]
         scores = self.get_scores(q_vectors, p_vectors)
+        softmax_scores = nn.functional.softmax(scores, dim=1)
 
-        if len(q_vectors.size()) > 1:
-            q_num = q_vectors.size(0)
-            scores = scores.view(q_num, -1)
+        loss = nn.functional.binary_cross_entropy(softmax_scores.view(-1, 1), labels, reduction='mean')
 
-        softmax_scores = F.log_softmax(scores, dim=1)
-
-        loss = F.nll_loss(softmax_scores,
-                          torch.tensor(positive_indices).to(softmax_scores.device),
-                          reduction="mean"
-                          )
-
-        max_score, max_idxs = torch.max(softmax_scores, 1)
-        correct_predictions_count = (max_idxs == torch.tensor(positive_indices).to(max_idxs.device)).sum()
+        predictions: T = torch.argmax(softmax_scores, dim=1)
+        correct_predictions_count = (predictions == torch.tensor(np.arange(scores.size(0))).to(predictions.device)).sum()
 
         if loss_scale:
             loss.mul_(loss_scale)
 
         return loss, correct_predictions_count
-
-
-
-
-
-
-
-
-
-
-
-
-
-

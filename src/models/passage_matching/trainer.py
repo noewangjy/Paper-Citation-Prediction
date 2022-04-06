@@ -7,7 +7,7 @@
 
 
 """
- Pipeline to train DPR Biencoder
+ Pipeline to train Passage Matching Biencoder
 """
 
 import logging
@@ -15,6 +15,7 @@ import os
 import time
 import timeit
 from typing import Tuple, List
+import numpy as np
 
 import torch
 from torch import Tensor as T
@@ -25,7 +26,12 @@ from torch.distributed import init_process_group
 from tqdm import tqdm, trange
 
 from .modeling import BertEncoder, BertTensorizer
-from .biencoder import BiEncoder, BiEncoderNllLoss, BiEncoderBatch, dot_product_scores
+from .biencoder import (
+    BiEncoder,
+    BiEncoderCELoss,
+    BiEncoderBatch,
+    dot_product_scores
+)
 from .biencoder_data import convert_data_to_sample, BiEncoderSample
 from .options import (
     set_seed,
@@ -53,31 +59,12 @@ from transformers import (
     AutoTokenizer,
     AutoModel,
     get_linear_schedule_with_warmup
-
 )
+from torch.utils.tensorboard import SummaryWriter
 
 logger = logging.getLogger()
 setup_logger(logger)
 
-
-#
-# def move_to_device(sample, device):
-#     if len(sample) == 0:
-#         return {}
-#
-#     def _move_to_device(maybe_tensor, device):
-#         if torch.is_tensor(maybe_tensor):
-#             return maybe_tensor.to(device)
-#         elif isinstance(maybe_tensor, dict):
-#             return {key: _move_to_device(value, device) for key, value in maybe_tensor.items()}
-#         elif isinstance(maybe_tensor, list):
-#             return [_move_to_device(x, device) for x in maybe_tensor]
-#         elif isinstance(maybe_tensor, tuple):
-#             return [_move_to_device(x, device) for x in maybe_tensor]
-#         else:
-#             return maybe_tensor
-#
-#     return _move_to_device(sample, device)
 
 
 def get_optimizer(
@@ -110,10 +97,10 @@ class BiEncoderTrainer(object):
 
     def __init__(self, args) -> None:
         self.args = args
+        self.tb_writer = SummaryWriter(args.train.output_dir)
         self.model: BiEncoder = None
         self.tensorizer: Tensorizer = None
         self.optimizer:  torch.optim.Optimizer = None
-
 
         # Setup CUDA, GPU for distributed training
         if self.args.train.local_rank == -1 or self.args.train.no_cuda:
@@ -179,6 +166,7 @@ class BiEncoderTrainer(object):
         self.model = BiEncoder(query_model=query_encoder, passage_model=passage_encoder, fix_q_encoder=fix_q_encoder,
                                fix_p_encoder=fix_p_encoder)
         self.tensorizer = BertTensorizer(args=cfg, max_seq_len=cfg.max_sequence_length, pad_to_max=cfg.pad_to_max)
+        self.model.to(self.device)
         if cfg.special_tokens:
             self.tensorizer.add_special_tokens(cfg.special_tokens)
 
@@ -245,7 +233,7 @@ class BiEncoderTrainer(object):
             # otherwise, determine total steps by training epochs
             total_steps = len(train_dataloader) // cfg.gradient_accumulation_steps * cfg.num_train_epochs
 
-        epochs_trained, steps_trained = self.init_biencoder()
+        global_epochs, global_steps = self.init_biencoder()
 
         self.optimizer = get_optimizer(self.model, cfg.learning_rate, cfg.adam_eps)
         scheduler = get_linear_schedule_with_warmup(
@@ -255,6 +243,7 @@ class BiEncoderTrainer(object):
         # Multi-GPU training
         if cfg.n_gpu > 1:
             self.model = torch.nn.DataParallel(self.model)
+        biencoder: BiEncoder = get_model_obj(self.model)
 
         # Distributed training
         if cfg.local_rank != -1:
@@ -280,7 +269,7 @@ class BiEncoderTrainer(object):
         logger.info("  Total optimization steps = %d", total_steps)
 
         if os.path.isfile(cfg.model_name_or_path):
-            logger.info("  Continuing training from epoch: %d, step: %d", epochs_trained, steps_trained)
+            logger.info("  Continuing training from epoch: %d, step: %d", global_epochs, global_steps)
         else:
             logger.info("  Starting fine-tuning from scratch")
 
@@ -288,45 +277,46 @@ class BiEncoderTrainer(object):
         self.model.train()
 
         set_seed(cfg)
-
-        epoch_loss = 0
-        epoch_correct_predictions = 0
+        steps_to_ignore = global_steps
 
         # Start loop for training
         for epoch in range(cfg.num_train_epochs):
-            if epochs_trained > 0:
-                epochs_trained -= 1
+            if global_epochs > 0:
+                global_epochs -= 1
                 continue
+            epoch_loss = 0
+            epoch_correct_predictions = 0
+
             logger.info("  Training Epoch: {}".format(epoch))
+            steps_trained_in_current_epoch = 0
             with tqdm(train_dataloader, desc="Step iteration") as pbar:
-                pbar.update(steps_trained)
+                if steps_to_ignore != 0:
+                    pbar.update(steps_to_ignore)
+                    steps_to_ignore = 0
+
                 for step, batch in enumerate(train_dataloader):
 
                     # Generate bi-encoder sample batch
                     batch_samples: List[BiEncoderSample] = convert_data_to_sample(batch)
 
-                    biencoder_batch: BiEncoderBatch = self.model.create_biencoder_input(
+                    biencoder_batch: BiEncoderBatch = biencoder.create_biencoder_input(
                         samples=batch_samples,
                         tensorizer=self.tensorizer,
-                        num_negatives=cfg.num_negatives,
-                        num_hard_negatives=cfg.num_hard_negatives,
-                        shuffle=True,
-                        shuffle_positives=cfg.shuffle_positives,
                     )
 
                     # Get representation position in input sequence
                     selector = DEFAULT_SELECTOR
-                    rep_positions = selector.get_positions(biencoder_batch.query_passage_ids, self.tensorizer)
+                    rep_positions = selector.get_positions(biencoder_batch.query_ids, self.tensorizer)
 
                     # Do bi-encoder forward pass:
                     input_batch = BiEncoderBatch(**move_to_device(biencoder_batch._asdict(), self.device))
 
-                    query_attention_mask = self.tensorizer.get_attention_mask(input_batch.query_passage_ids)
+                    query_attention_mask = self.tensorizer.get_attention_mask(input_batch.query_ids)
                     passage_attention_mask = self.tensorizer.get_attention_mask(input_batch.passage_ids)
 
                     outputs = self.model(
-                        input_batch.query_passage_ids,
-                        input_batch.query_passage_segments,
+                        input_batch.query_ids,
+                        input_batch.query_segments,
                         query_attention_mask,
                         input_batch.passage_ids,
                         input_batch.passage_segments,
@@ -334,16 +324,14 @@ class BiEncoderTrainer(object):
                         encoder_type=cfg.encoder_type,
                         representation_token_pos=rep_positions
                     )
-
                     query_vector, passage_vector = outputs
 
                     # Calculate NLL loss
-                    loss_fct = BiEncoderNllLoss()
+                    loss_fct = BiEncoderCELoss()
                     loss, correct_cnt = loss_fct.calculate(
                         q_vectors=query_vector,
                         p_vectors=passage_vector,
-                        positive_indices=input_batch.positive_passage_indices,
-                        hard_negative_indices=input_batch.hard_negative_passage_indices,
+                        labels=input_batch.labels,
                         loss_scale=cfg.loss_scale
                     )
                     correct_cnt = correct_cnt.sum().item()
@@ -367,16 +355,30 @@ class BiEncoderTrainer(object):
                         scheduler.step()
                         self.model.zero_grad()
 
-                    pbar.set_description("Epoch: {}, NLL loss: {}".format(epoch, loss.detach().numpy()))
+                    global_steps += 1
+                    steps_trained_in_current_epoch += 1
+                    pbar.set_description("Epoch: {} Steps: {}, BCE loss: {}".format(epoch, global_steps, epoch_loss/steps_trained_in_current_epoch))
                     pbar.update()
-                    steps_trained += 1
-                    if steps_trained >= cfg.max_steps:
+
+                    self.tb_writer.add_scalar('train_step_loss', epoch_loss/steps_trained_in_current_epoch , global_steps)
+                    self.tb_writer.add_text('train_step_loss', 'train_step_loss')
+
+                    if global_steps >= total_steps:
                         logger.info("Training finished by max_steps: {}".format(cfg.max_steps))
                         self.save_checkpoint(scheduler, epoch=epoch, tag=str(cfg.max_steps))
                         return
 
+            epoch_loss = epoch_loss / steps_trained_in_current_epoch
+            epoch_acc = epoch_correct_predictions/len(train_dataset)
+            logger.info("Av Loss per epoch=%f", epoch_loss)
+            logger.info("epoch total correct predictions=%f", epoch_acc)
+            self.tb_writer.add_scalar("train_epoch_loss", epoch_loss, epoch)
+            self.tb_writer.add_text("train_epoch_loss", "train_epoch_loss")
+            self.tb_writer.add_scalar("train_epoch_accuracy", epoch_acc, epoch)
+            self.tb_writer.add_text("train_epoch_accuracy", "train_epoch_accuracy")
             logger.info("Epoch finished on %d", cfg.local_rank)
             self.save_checkpoint(scheduler, epoch=epoch)
+            self.tb_writer.flush()
 
     def evaluate(self, dev_dataset: Dataset, tag: str = None):
         logger.info("NLL validation on dev data ...")
@@ -407,41 +409,40 @@ class BiEncoderTrainer(object):
         if cfg.n_gpu > 1 and not isinstance(self.model, torch.nn.DataParallel):
             self.model = torch.nn.DataParallel(self.model)
 
+        biencoder: BiEncoder = get_model_obj(self.model)
+
         logger.info("***** Running evaluation {} on dev-data *****".format(tag))
         logger.info("  Num examples = %d", len(dev_dataset))
         logger.info("  Batch size = %d", eval_batch_size)
 
         total_loss = 0.0
         total_correct_predictions = 0
+        steps_evaled = 0
 
         with tqdm(eval_dataloader, desc="Evaluating") as pbar:
-            for batch in eval_dataloader:
+            for step, batch in enumerate(eval_dataloader):
                 # Generate bi-encoder sample batch
                 batch_samples: List[BiEncoderSample] = convert_data_to_sample(batch)
 
-                biencoder_batch: BiEncoderBatch = self.model.create_biencoder_input(
+                biencoder_batch: BiEncoderBatch = biencoder.create_biencoder_input(
                     samples=batch_samples,
                     tensorizer=self.tensorizer,
-                    num_negatives=cfg.num_negatives,
-                    num_hard_negatives=cfg.num_hard_negatives,
-                    shuffle=False,
-                    shuffle_positives=False,
                 )
 
                 # Get representation position in input sequence
                 selector = DEFAULT_SELECTOR
-                rep_positions = selector.get_positions(biencoder_batch.query_passage_ids, self.tensorizer)
+                rep_positions = selector.get_positions(biencoder_batch.query_ids, self.tensorizer)
 
                 # Do bi-encoder forward pass:
                 input_batch = BiEncoderBatch(**move_to_device(biencoder_batch._asdict(), self.device))
 
-                query_attention_mask = self.tensorizer.get_attention_mask(input_batch.query_passage_ids)
+                query_attention_mask = self.tensorizer.get_attention_mask(input_batch.query_ids)
                 passage_attention_mask = self.tensorizer.get_attention_mask(input_batch.passage_ids)
 
                 with torch.no_grad():
                     outputs = self.model(
-                        input_batch.query_passage_ids,
-                        input_batch.query_passage_segments,
+                        input_batch.query_ids,
+                        input_batch.query_segments,
                         query_attention_mask,
                         input_batch.passage_ids,
                         input_batch.passage_segments,
@@ -452,12 +453,11 @@ class BiEncoderTrainer(object):
                 query_vector, passage_vector = outputs
 
                 # Calculate NLL loss
-                loss_fct = BiEncoderNllLoss()
+                loss_fct = BiEncoderCELoss()
                 loss, correct_cnt = loss_fct.calculate(
                     q_vectors=query_vector,
                     p_vectors=passage_vector,
-                    positive_indices=input_batch.positive_passage_indices,
-                    hard_negative_indices=input_batch.hard_negative_passage_indices,
+                    labels=input_batch.labels,
                     loss_scale=cfg.loss_scale
                 )
                 correct_cnt = correct_cnt.sum().item()
@@ -469,13 +469,14 @@ class BiEncoderTrainer(object):
 
                 total_loss += loss.item()
                 total_correct_predictions += correct_cnt
-                pbar.set_description("Current loss: {}".format(loss.detach().numpy()))
+                steps_evaled += 1
+                pbar.set_description("Current loss: {}".format(total_loss / steps_evaled))
                 pbar.update()
 
         total_loss = total_loss / len(dev_dataset)
         correct_ratio = float(total_correct_predictions / len(dev_dataset))
         logger.info(
-            "NLL Validation: loss = %f. correct prediction ratio  %d/%d ~  %f",
+            "BCE Validation: loss = %f. correct prediction ratio  %d/%d ~  %f",
             total_loss,
             total_correct_predictions,
             len(dev_dataset),
@@ -483,7 +484,6 @@ class BiEncoderTrainer(object):
         )
         with open(os.path.join(cfg.output_dir, "dev_result.txt"), "a") as f:
             f.write(f"{tag}: NLL loss: {total_loss}, accuracy: {correct_ratio}\n")
-
 
     def predict(self, test_dataset: Dataset, write_file: bool = False, tag: str = None) -> List[float]:
         cfg = self.args.train
@@ -499,6 +499,7 @@ class BiEncoderTrainer(object):
 
         if cfg.n_gpu > 1 and not isinstance(self.model, torch.nn.DataParallel):
             self.model = torch.nn.DataParallel(self.model)
+        biencoder: BiEncoder = get_model_obj(self.model)
 
         logger.info("***** Running Prediction {} on test-data *****".format(tag))
         logger.info("  Num examples = %d", len(test_dataset))
@@ -510,29 +511,25 @@ class BiEncoderTrainer(object):
             # Generate bi-encoder sample batch
             batch_samples: List[BiEncoderSample] = convert_data_to_sample(batch)
 
-            biencoder_batch: BiEncoderBatch = self.model.create_biencoder_input(
+            biencoder_batch: BiEncoderBatch = biencoder.create_biencoder_input(
                 samples=batch_samples,
                 tensorizer=self.tensorizer,
-                num_negatives=cfg.num_negatives,
-                num_hard_negatives=cfg.num_hard_negatives,
-                shuffle=False,
-                shuffle_positives=False,
             )
 
             # Get representation position in input sequence
             selector = DEFAULT_SELECTOR
-            rep_positions = selector.get_positions(biencoder_batch.query_passage_ids, self.tensorizer)
+            rep_positions = selector.get_positions(biencoder_batch.query_ids, self.tensorizer)
 
             # Do bi-encoder forward pass:
             input_batch = BiEncoderBatch(**move_to_device(biencoder_batch._asdict(), self.device))
 
-            query_attention_mask = self.tensorizer.get_attention_mask(input_batch.query_passage_ids)
+            query_attention_mask = self.tensorizer.get_attention_mask(input_batch.query_ids)
             passage_attention_mask = self.tensorizer.get_attention_mask(input_batch.passage_ids)
 
             with torch.no_grad():
                 outputs = self.model(
-                    input_batch.query_passage_ids,
-                    input_batch.query_passage_segments,
+                    input_batch.query_ids,
+                    input_batch.query_segments,
                     query_attention_mask,
                     input_batch.passage_ids,
                     input_batch.passage_segments,
@@ -542,20 +539,14 @@ class BiEncoderTrainer(object):
                 )
             query_vector, passage_vector = outputs
 
-            # scores,size = (q_num, p_num)
+            # scores,size = (batch_size, batch_size)
             scores = dot_product_scores(query_vector, passage_vector)
-            if len(query_vector.size()) > 1:
-                q_num = query_vector.size(0)
-                scores = scores.view(q_num, -1)
-            softmax_scores = F.log_softmax(scores, dim=1)
-            softmax_scores = softmax_scores.detach().numpy()
-            predictions = [0.0 for i in range(len(input_batch.positive_passage_indices))]
-            for i in range(len(input_batch.positive_passage_indices)):
-                predictions.append(softmax_scores[i, input_batch.positive_passage_indices[i]])
-
+            softmax_scores = nn.Softmax(dim=1)(scores)
+            predictions = torch.argmax(softmax_scores, dim=1)
+            predictions = predictions.detach().cpu().numpy()
             all_predictions.extend(predictions)
 
         if write_file:
-            generate_submission(cfg.output_dir, all_predictions, tag=tag)
+            generate_submission(cfg.output_dir, np.array(all_predictions), tag=tag)
 
         return all_predictions

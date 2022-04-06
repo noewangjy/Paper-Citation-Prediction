@@ -1,14 +1,15 @@
 # @package _group_
 
 
-#model_name_or_path: "/Users/noewang/Desktop/DM/ICE6407P-260-M01/tasks/passage_matching/checkpoints/PM_model.1.1"
+#model_name_or_path: "/Users/noewang/Desktop/DM/ICE6407P-260-M01/tasks/passage_matching/checkpoints/PM_model.0.1"
+#model_name_or_path: "/data/wangjy/passage-maching/tasks/passage_matching/checkpoints/passage_matching_model.0.100"
 model_name_or_path: "bert-base-uncased"
-per_gpu_train_batch_size:
-per_gpu_eval_batch_size: 4
-n_gpu:
-no_cuda: True
+per_gpu_train_batch_size: 12
+per_gpu_eval_batch_size: 12
+n_gpu: 2
+no_cuda: False
 num_train_epochs: 4
-max_steps: -1
+max_steps: 0
 
 # Number of updates steps to accumulate before performing a backward/update pass.
 gradient_accumulation_steps: 1
@@ -30,7 +31,7 @@ learning_rate: 2e-5
 fp16: False
 
 
-output_dir: "/Users/noewang/Desktop/DM/ICE6407P-260-M01/tasks/passage_matching/checkpoints"
+output_dir: "/data/wangjy/passage-maching/tasks/passage_matching/checkpoints"
 checkpoint_file_name: "passage_matching_model"
 do_lower_case: True
 
