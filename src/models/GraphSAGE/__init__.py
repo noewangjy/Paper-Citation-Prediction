@@ -1,1 +1,1 @@
-from .GraphSAGE import MLPPredictor, DotPredictor, GraphSAGEBert
+from .GraphSAGE import MLPPredictor, DotPredictor, GraphSAGEBert, GraphSAGEBundled

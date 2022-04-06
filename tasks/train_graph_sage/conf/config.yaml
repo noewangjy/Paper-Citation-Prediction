@@ -1,22 +1,24 @@
 io:
   log_dir: './logs'
   checkpoint_dir: './checkpoints'
-  num_checkpoints: 3
+  num_checkpoints: 5
+  save_interval: 500
 
 model:
-  bert_model_name: 'bert-base-uncased'
-  bert_num_feature: 768
+  predictor: 'dot'
+  aggregator: 'mean'
+  hidden_dims: 512
 
 dataset:
   train_dataset_path: '../../data/neo_converted/nullptr_no_feature_train.pkl'
   dev_dataset_path: '../../data/neo_converted/nullptr_no_feature_dev.pkl'
-  author_token_length: 128
-  abstract_token_length: 256
+  test_dataset_path: '../../data/neo_converted/nullptr_no_feature_test.pkl'
+  features_path: '../../data/abstract_features/features.pkl'
 
 train:
-  batch_size: 32
-  lr: 0.0001
-  max_epochs: 10
+  lr: 0.001
+  max_epochs: 10000
+  val_check_interval: 100
 
 defaults:
   - _self_

@@ -1,13 +1,13 @@
 import pickle
 from abc import ABC
 from typing import Dict, Union, List
+import os
 
 import networkx as nx
 import numpy as np
 import torch
 from torch.utils.data import Dataset
 from transformers import AutoTokenizer
-import torch.nn.functional as torch_f
 
 
 class NetworkDatasetBase(Dataset, ABC):
@@ -121,65 +121,6 @@ class NetworkDatasetEdge(NetworkDatasetBase):
                           torch.tensor([self.y[item]])]).to(self.dtype)
 
 
-class NetworkDatasetSAGEBert(NetworkDatasetBase):
-    length: int
-
-    def __init__(self,
-                 dataset_path: str,
-                 tokenizer: AutoTokenizer,
-                 author_token_length: int = 128,
-                 abstract_token_length: int = 512):
-        NetworkDatasetBase.__init__(self, dataset_path)
-        self.tokenizer = tokenizer
-        self.length = len(self.data['u'])
-        self.author_token_length = author_token_length
-        self.abstract_token_length = abstract_token_length
-
-    @property
-    def feature_dim(self) -> int:
-        return self.edge_features.shape[1] + 3
-
-    def convert_to_token(self, string: str, length: int) -> torch.Tensor:
-        res = torch.zeros(size=(length,), dtype=torch.int64)
-        string_encoded = self.tokenizer.encode(string, truncation=True, max_length=length)
-        res[:min(length, len(string_encoded))] = torch.tensor(string_encoded[:min(length, len(string_encoded))], dtype=torch.int64)
-        return res
-
-    def __getitem__(self, item):
-        u, v, y = self.u[item], self.v[item], self.y[item]
-        u_authors = self.convert_to_token(','.join(self.authors[u]), self.author_token_length)
-        v_authors = self.convert_to_token(','.join(self.authors[v]), self.author_token_length)
-
-        u_abstract = self.convert_to_token(self.abstracts[u], self.abstract_token_length)
-        v_abstract = self.convert_to_token(self.abstracts[v], self.abstract_token_length)
-
-        return torch.tensor([u], dtype=torch.int64), \
-               torch.tensor([v], dtype=torch.int64), \
-               torch.tensor([self.graph.degree(u)], dtype=torch.int64), \
-               torch.tensor([self.graph.degree(v)], dtype=torch.int64), \
-               torch.tensor([abs(self.graph.degree(u) - self.graph.degree(v))], dtype=torch.int64), \
-               u_authors, \
-               v_authors, \
-               u_abstract, \
-               v_abstract, \
-               y
-
-    @property
-    def keys(self):
-        return {
-            'u': 0,
-            'v': 1,
-            'u_deg': 2,
-            'v_deg': 3,
-            'uv_deg_diff': 4,
-            'u_authors': 5,
-            'v_authors': 6,
-            'u_abstracts': 7,
-            'v_abstracts': 8,
-            'y': 9
-        }
-
-
 class NetworkDatasetNode(NetworkDatasetBase):
     length: int
     dtype: torch.dtype
@@ -195,6 +136,32 @@ class NetworkDatasetNode(NetworkDatasetBase):
 
     def __getitem__(self, item):
         return torch.tensor([self.node_features[item]]).to(self.dtype)
+
+
+class NetworkDatasetGraphSAGEBert(NetworkDatasetBase):
+    length: int
+    dtype: torch.dtype
+
+    def __init__(self,
+                 dataset_path: str,
+                 feature_path: str,
+                 dtype: torch.dtype = torch.float32):
+        NetworkDatasetBase.__init__(self, dataset_path)
+        self.dtype = dtype
+        self.data['node_features'] = self.unpack_features(pickle.load(open(feature_path, 'rb')), self.dtype)
+        self.length = len(self.node_features)
+
+    @staticmethod
+    def unpack_features(features: np.ndarray, dtype: torch.dtype) -> torch.Tensor:
+        features_sum = np.sum(features, axis=1, keepdims=True)
+        return torch.tensor(features.astype(int) / features_sum, dtype=dtype)
+
+    @property
+    def feature_dim(self) -> int:
+        return self.node_features.shape[1]
+
+    def __getitem__(self, item):
+        return self.node_features[item]
 
 
 class NetworkDatasetPassageMatching(NetworkDatasetBase):
@@ -258,8 +225,8 @@ if __name__ == '__main__':
     # print(train_driver[1000:1100])
     # print(len(train_driver))
     # train_driver = NetworkDatasetPassageMatching('../../data/neo_converted/nullptr_train.pkl')
-    tokenizer = AutoTokenizer.from_pretrained('bert-base-uncased')
-    train_driver = NetworkDatasetSAGEBert('../../data/neo_converted/nullptr_no_feature_train.pkl', tokenizer)
+    # tokenizer = AutoTokenizer.from_pretrained('bert-base-uncased')
+    train_driver = NetworkDatasetGraphSAGEBert('../../data/neo_converted/nullptr_no_feature_train.pkl', '../../data/abstract_features_v1/features.pkl')
     from torch.utils.data import DataLoader
 
     train_loader = DataLoader(train_driver, batch_size=32)
