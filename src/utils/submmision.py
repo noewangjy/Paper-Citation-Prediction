@@ -17,7 +17,7 @@ def generate_submission(output_dir: str, pred: Union[np.ndarray, torch.Tensor], 
         os.makedirs(output_dir)
 
     results = zip(range(len(pred)), pred)
-    with open(os.path.join(output_dir, tag + 'submission_.csv'), 'w') as f:
+    with open(os.path.join(output_dir, tag + '_submission_.csv'), 'w') as f:
         csv_out = csv.writer(f)
         csv_out.writerow(['id', 'predicted'])
         for row in results:
