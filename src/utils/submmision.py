@@ -8,7 +8,8 @@ import tqdm
 
 
 def generate_submission(output_dir: str, pred: Union[np.ndarray, torch.Tensor], tag: str = ""):
-    assert len(pred.shape) == 1 or (len(pred.shape) == 2 and pred.shape[1] == 0), ValueError(f"Expect pred to be a vector")
+    if not (len(pred.shape) == 1 or (len(pred.shape) == 2 and pred.shape[1] == 1)):
+        print(f"Expect pred to be a vector")
     if not pred.shape[0] == 106692:
         print(f"Expect pred to have length 106692 but have {pred.shape[0]}")
 
