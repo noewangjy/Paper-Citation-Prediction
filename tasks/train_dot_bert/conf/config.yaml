@@ -1,0 +1,29 @@
+debug: false
+io:
+  log_dir: './logs'
+  checkpoint_dir: './checkpoints'
+  num_checkpoints: 8
+  every_n_epochs: 1
+  every_n_train_steps: 20000
+
+model:
+  bert_model_name: 'bert-base-uncased'
+  bert_num_feature: 768
+
+dataset:
+  train_dataset_path: '../../data/neo_converted/nullptr_no_feature_whole.pkl'
+  dev_dataset_path: '../../data/neo_converted/nullptr_no_feature_dev.pkl'
+  test_dataset_path: '../../data/neo_converted/nullptr_no_feature_test.pkl'
+  author_token_length: 128
+  abstract_token_length: 128
+
+train:
+  batch_size: 24
+  lr: 0.001
+  max_epochs: 10
+
+test:
+  batch_size: 16
+defaults:
+  - _self_
+  - machine: goodnews
