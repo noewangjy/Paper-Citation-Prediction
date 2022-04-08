@@ -1,21 +1,16 @@
 import collections
-from ctypes import Union
-import logging
-import random
-from typing import Tuple, List
-
-import numpy as np
-import os
+from typing import Tuple, List, Dict
 import torch
 import torch.nn as nn
 from torch import Tensor as T
 import torch.nn.functional as F
 
+from .modeling import BertEncoder
 from .model_utils import CheckpointState
 from .data_utils import Tensorizer
-from .biencoder_data import BiEncoderSample
 
-# from .modeling import BertTensorizer
+
+# BiEncoderPassage = collections.namedtuple("BiEncoderPassage", ["authors", "abstract"])
 
 
 BiEncoderBatch = collections.namedtuple(
@@ -23,8 +18,8 @@ BiEncoderBatch = collections.namedtuple(
     [
         "query_ids",
         "query_segments",
-        "passage_ids",
-        "passage_segments",
+        "context_ids",
+        "context_segments",
         "labels",
         "encoder_type"
     ]
@@ -50,30 +45,27 @@ class BiEncoder(nn.Module):
 
     def __init__(
             self,
-            query_model: nn.Module,
-            passage_model: nn.Module,
+            query_model: BertEncoder,
+            passage_model: BertEncoder,
             fix_q_encoder: bool = False,
             fix_p_encoder: bool = False,
     ):
         super(BiEncoder, self).__init__()
         self.query_model = query_model
         self.passage_model = passage_model
+        self.classifier = nn.Linear(query_model.output_size*2, 2)
         self.fix_q_encoder = fix_q_encoder
         self.fix_p_encoder = fix_p_encoder
 
     @staticmethod
     def get_representation(
-            sub_model: nn.Module,
+            sub_model: BertEncoder,
             input_ids: T,
             input_segments: T,
             attention_mask: T,
             fix_encoder: bool = False,
             representation_token_pos: int = 0,
     ) -> Tuple[T, T, T]:
-
-        sequence_output = None
-        pooled_output = None
-        hidden_states = None
 
         if input_ids is not None:
             if fix_encoder:
@@ -114,7 +106,7 @@ class BiEncoder(nn.Module):
             passage_attention_mask: T,
             encoder_type: str = None,
             representation_token_pos: int = 0,
-    ) -> Tuple[T, T]:
+    ) -> T:
 
         q_encoder = self.query_model if encoder_type is None or encoder_type == "query" else self.passage_model
         _q_seq, q_pooled_out, _q_hidden = self.get_representation(
@@ -135,40 +127,41 @@ class BiEncoder(nn.Module):
             self.fix_p_encoder,
             representation_token_pos
         )
+        output = self.classifier(torch.cat([q_pooled_out, p_pooled_out], dim=1))
 
-        return q_pooled_out, p_pooled_out
+        return output
 
     def create_biencoder_input(
             self,
-            samples: List[BiEncoderSample],
+            batch: Dict,
             tensorizer: Tensorizer,
     ) -> BiEncoderBatch:
 
-        query_tensors = []
-        passage_tensors = []
-        # label_tensors.size() = [batch_size * batch_size]
-        label_tensors = torch.eye(len(samples)).view(-1, 1)
+        query_passages: Dict = batch["query"]
+        context_passages: Dict = batch["context"]
+        labels: T = batch["label"]
 
-        for sample in samples:
-            query_psg = sample.query_passage
-            positive_psg = sample.positive_passages[np.random.choice(len(sample.positive_passages))]
-            query_tensors.append(tensorizer.text_to_tensor(query_psg.abstract))
-            passage_tensors.append(tensorizer.text_to_tensor(positive_psg.abstract))
+        query_tensors = []
+        context_tensors = []
+
+        for i in range(len(labels)):
+            query_tensors.append(tensorizer.text_to_tensor(query_passages["abstract"][i]))
+            context_tensors.append(tensorizer.text_to_tensor(context_passages["abstract"][i]))
 
         # passage_tensors.size() = [batch_size, max_seq_len]
-        passage_tensors = torch.cat([psg.view(1, -1) for psg in passage_tensors], dim=0)
+        context_tensors = torch.cat([ctx.view(1, -1) for ctx in context_tensors], dim=0)
         # query_tensors.size() = [batch_size, max_seq_len]
         query_tensors = torch.cat([q.view(1, -1) for q in query_tensors], dim=0)
 
-        passage_segments = torch.zeros_like(passage_tensors)
+        context_segments = torch.zeros_like(context_tensors)
         query_segments = torch.zeros_like(query_tensors)
 
         return BiEncoderBatch(
             query_ids=query_tensors,
             query_segments=query_segments,
-            passage_ids=passage_tensors,
-            passage_segments=passage_segments,
-            labels=label_tensors,
+            context_ids=context_tensors,
+            context_segments=context_segments,
+            labels=labels,
             encoder_type="query"
         )
 
@@ -179,7 +172,7 @@ class BiEncoder(nn.Module):
         return self.state_dict()
 
 
-class BiEncoderCELoss(object):
+class BiEncoderLoss(object):
 
     @staticmethod
     def get_scores(q_vectors: T, p_vectors: T) -> T:
@@ -188,19 +181,18 @@ class BiEncoderCELoss(object):
 
     def calculate(
             self,
-            q_vectors: T,
-            p_vectors: T,
+            scores: T,
             labels: T,
             loss_scale: float = None,
     ) -> Tuple[T, int]:
-        # scores.size() = [batch_size, batch_size]
-        scores = self.get_scores(q_vectors, p_vectors)
+        # scores.size() = [batch_size, 2]
         softmax_scores = nn.functional.softmax(scores, dim=1)
 
-        loss = nn.functional.binary_cross_entropy(softmax_scores.view(-1, 1), labels, reduction='mean')
+        # labels.size() = [batch_size]
+        loss = nn.functional.cross_entropy(softmax_scores, labels, reduction='mean')
 
         predictions: T = torch.argmax(softmax_scores, dim=1)
-        correct_predictions_count = (predictions == torch.tensor(np.arange(scores.size(0))).to(predictions.device)).sum()
+        correct_predictions_count = (predictions == labels).sum()
 
         if loss_scale:
             loss.mul_(loss_scale)

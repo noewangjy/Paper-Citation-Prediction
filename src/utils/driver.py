@@ -143,7 +143,8 @@ class NetworkDatasetMLPBert(NetworkDatasetBase):
     def convert_to_token(self, string: str, length: int) -> torch.Tensor:
         res = torch.zeros(size=(length,), dtype=torch.int64)
         string_encoded = self.tokenizer.encode(string, truncation=True, max_length=length)
-        res[:min(length, len(string_encoded))] = torch.tensor(string_encoded[:min(length, len(string_encoded))], dtype=torch.int64)
+        res[:min(length, len(string_encoded))] = torch.tensor(string_encoded[:min(length, len(string_encoded))],
+                                                              dtype=torch.int64)
         return res
 
     def __getitem__(self, item):
@@ -286,50 +287,29 @@ class NetworkDatasetGraphSAGEBert(NetworkDatasetBase):
 class NetworkDatasetPassageMatching(NetworkDatasetBase):
     length: int
 
-    def __init__(self,
-                 dataset_path: str,
-                 num_pos_neighbors: int = 5,
-                 num_neg_neighbors: int = 5):
+    def __init__(self, dataset_path: str):
         # super(NetworkDatasetBase, self).__init__(dataset_path)
         NetworkDatasetBase.__init__(self, dataset_path)
-        self.length = len(self.data['abstracts'])
-        self.node_index = np.arange(self.length)
-        self.num_pos_neighbors = num_pos_neighbors
-        self.num_neg_neighbors = num_neg_neighbors
+        self.length = len(self.u)
 
     def __getitem__(self, item):
-        item_neighbors = list(self.graph[item].keys())
-        np.random.shuffle(item_neighbors)
+        u = self.u[item]
+        v = self.v[item]
+        y = self.y[item]
+        query = {
+            'authors': ','.join(self.authors[u]),
+            'abstract': self.abstracts[u]
+        }
+        context = {
+            'authors': ','.join(self.authors[v]),
+            'abstract': self.abstracts[v]
+        }
 
-        pos_passage_idx_list: List[int] = [-1 for _ in range(self.num_pos_neighbors)]
-        pos_abstracts = ['' for _ in range(self.num_pos_neighbors)]
-        pos_authors = ['' for _ in range(self.num_pos_neighbors)]
-        for idx in range(min(self.num_pos_neighbors, len(item_neighbors))):
-            pos_passage_idx_list[idx] = item_neighbors[idx]
-            pos_abstracts[idx] = self.abstracts[item_neighbors[idx]]
-            pos_authors[idx] = ','.join(self.authors[item_neighbors[idx]])
-
-        neg_passage_idx_list: List[int] = []
-        neg_abstracts = ['' for _ in range(self.num_neg_neighbors)]
-        neg_authors = ['' for _ in range(self.num_neg_neighbors)]
-        for idx in range(self.num_neg_neighbors):
-            while True:
-                node_idx = np.random.randint(0, self.length)
-                if node_idx != item and node_idx not in item_neighbors and node_idx not in neg_passage_idx_list:
-                    neg_passage_idx_list.append(node_idx)
-                    neg_abstracts[idx] = self.abstracts[node_idx]
-                    neg_authors[idx] = ','.join(self.authors[node_idx])
-                    break
-
-        return {'item': item,
-                'authors': ','.join(self.authors[item]),
-                'abstracts': self.abstracts[item],
-                'pos_passages': torch.tensor(pos_passage_idx_list),
-                'neg_passages': torch.tensor(neg_passage_idx_list),
-                'pos_authors': pos_authors,
-                'pos_abstracts': pos_abstracts,
-                'neg_authors': neg_authors,
-                'neg_abstracts': neg_abstracts}
+        return {
+            'query': query,
+            'context': context,
+            'label': y
+        }
 
     def __len__(self):
         return self.length

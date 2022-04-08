@@ -11,8 +11,7 @@ do_predict: True
 eval_all_checkpoints: True
 predict_all_checkpoints: True
 
-data_path: "/data/wangjy/passage-maching/data/neo_converted"
-#data_path: "/data/wangjy/passage-maching/data/neo_converted"
+data_path: "../../data/neo_converted"
 train_file: "nullptr_no_feature_train.pkl"
 dev_file: "nullptr_no_feature_dev.pkl"
 test_file: "nullptr_no_feature_test.pkl"

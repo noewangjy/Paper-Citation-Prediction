@@ -1,6 +1,7 @@
 import hydra
 import torch
 import os
+from hydra.utils import to_absolute_path
 
 from src.models.passage_matching.trainer import BiEncoderTrainer
 from src.utils import NetworkDatasetPassageMatching
@@ -10,6 +11,9 @@ from src.utils import NetworkDatasetPassageMatching
 def main(args):
     if not args.train.no_cuda:
         torch.backends.cudnn.benchmark = True
+
+    args.data_path = to_absolute_path(args.data_path)
+    args.train.output_dir = to_absolute_path(args.train.output_dir)
 
     trainer = BiEncoderTrainer(args=args)
 
@@ -28,6 +32,9 @@ def main(args):
                 raise ValueError("cfg.train.output_dir is EMPTY!")
             # Eval all checkpoints in train.output_dir
             for checkpoint in os.listdir(args.train.output_dir):
+                checkpoint_tokens = checkpoint.split(".")
+                if checkpoint_tokens[0] != args.train.checkpoint_file_name:
+                    continue
                 # Reset the model to load from checkpoint
                 trainer.reset_biencoder()
                 trainer.args.train.model_name_or_path = os.path.join(args.train.output_dir, checkpoint)
@@ -53,7 +60,6 @@ def main(args):
         else:
             # Predict the last trained model
             trainer.predict(test_dataset, tag="last_trained_model")
-
 
 
 if __name__ == "__main__":
