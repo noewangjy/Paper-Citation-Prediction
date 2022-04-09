@@ -2,7 +2,7 @@
 defaults:
   - train: train_config
   - biencoder: biencoder_config
-  - machine: mercury
+  - machine: lab1527
 
 
 data_path: "../../data/neo_converted"

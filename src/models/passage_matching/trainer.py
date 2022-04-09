@@ -276,7 +276,6 @@ class BiEncoderTrainer(object):
         else:
             logger.info("  Starting fine-tuning from scratch")
 
-        self.model.zero_grad()
         self.model.train()
 
         set_seed(cfg)
@@ -343,14 +342,15 @@ class BiEncoderTrainer(object):
                     epoch_loss += loss.item()
 
                     # Do bi-encoder backward propagation
-                    loss.backward()
+
                     if cfg.max_grad_norm > 0:
                         torch.nn.utils.clip_grad_norm_(self.model.parameters(), cfg.max_grad_norm)
 
                     if (step + 1) % cfg.gradient_accumulation_steps == 0:
+                        self.optimizer.zero_grad()
+                        loss.backward()
                         self.optimizer.step()
                         scheduler.step()
-                        self.model.zero_grad()
 
                     global_steps += 1
                     steps_trained_in_current_epoch += 1

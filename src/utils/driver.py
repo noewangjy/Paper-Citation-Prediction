@@ -315,6 +315,29 @@ class NetworkDatasetPassageMatching(NetworkDatasetBase):
         return self.length
 
 
+class NetworkDatasetEmbeddingClassification(NetworkDatasetBase):
+
+    def __init__(self, dataset_path: str):
+        # super(NetworkDatasetBase, self).__init__(dataset_path)
+        NetworkDatasetBase.__init__(self, dataset_path)
+        self.length = len(self.u)
+
+    def __getitem__(self, item):
+
+        return {
+            'nodes': [self.u[item], self.v[item]],
+            'label': self.y[item]
+        }
+
+    def __len__(self):
+        return self.length
+
+
+
+
+
+
+
 if __name__ == '__main__':
     # train_driver = NetworkDatasetBase('../../data/converted/nullptr_train.pkl')
     # dev_driver = NetworkDatasetBase('../../data/converted/nullptr_dev.pkl')
