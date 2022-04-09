@@ -1,0 +1,7 @@
+edges:
+pos_uv:
+neg_uv:
+cora_like:
+  max_freq: 1e8
+  min_freq: 500
+  num_procs: 24

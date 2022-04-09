@@ -1,0 +1,62 @@
+features:
+  pos_uv:
+    deps: [ ]
+    products:
+      - pos_u
+      - pos_v
+      - u
+      - v
+      - y
+  neg_uv:
+    deps: [ ]
+    products:
+      - neg_u
+      - neg_v
+      - u
+      - v
+      - y
+  edges:
+    deps: [ ]
+    products:
+      - origin_edges
+  graph:
+    deps: [ ]
+    products:
+      - graph
+  node_abstract_bert:
+    deps: [ ]
+    products:
+      - node_abstract_bert
+  edge_generic:
+    deps:
+      - u
+      - v
+      - y
+    products:
+      - edge_generic
+  cora_like:
+    deps: [ ]
+    products:
+      - cora_features
+      - cora_vocab
+      - cora_word_index
+  authors_index:
+    deps: [ ]
+    products:
+      - authors_index
+record_names:
+  abstracts: abstracts.txt
+  authors: authors.txt
+  edges: edgelist.txt
+  evaluate_cases: test.txt
+
+dev_ratio: 0.2
+random_seed: 0
+prefix: nullptr
+read_path: "../../data"
+output_path: "../../data/converted"
+device: "cuda:1"
+
+defaults:
+  - _self_
+  - target_features: basic

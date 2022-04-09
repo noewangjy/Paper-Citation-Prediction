@@ -1,0 +1,17 @@
+pos_uv:
+neg_uv:
+edges:
+graph:
+authors:
+abstracts:
+node_abstract_bert:
+  num_node_feature_dim: 8
+  #num_author_features: 5
+  num_abstract_features: 768
+  batch_size: 32
+edge_generic:
+cora_like:
+  max_freq: 1e8
+  min_freq: 500
+  num_procs: 24
+author_index:
