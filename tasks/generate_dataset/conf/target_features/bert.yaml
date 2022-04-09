@@ -1,0 +1,10 @@
+edges:
+authors:
+abstracts:
+pos_uv:
+neg_uv:
+node_abstract_bert:
+  num_node_feature_dim: 8
+  #num_author_features: 5
+  num_abstract_features: 768
+  batch_size: 32
