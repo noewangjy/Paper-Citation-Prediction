@@ -30,7 +30,7 @@ fp16: False
 
 
 output_dir: "./checkpoints"
-checkpoint_file_name: "model_with_pooled_output"
+checkpoint_file_name: "new_biencoder_model_seq_out"
 do_lower_case: True
 
 

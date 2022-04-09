@@ -2,7 +2,9 @@ import hydra
 import torch
 import os
 from hydra.utils import to_absolute_path
+import numpy as np
 
+from torch.utils.data import Subset
 from src.models.passage_matching.trainer import BiEncoderTrainer
 from src.utils import NetworkDatasetPassageMatching
 
@@ -20,11 +22,15 @@ def main(args):
     if args.do_train:
         train_data_path = os.path.join(args.data_path, args.train_file)
         train_dataset = NetworkDatasetPassageMatching(train_data_path)
+        if args.train_dataset_size:
+            train_dataset = Subset(train_dataset, np.arange(args.train_dataset_size)-int(args.train_dataset_size/2))
         trainer.train(train_dataset)
 
     if args.do_eval:
         dev_data_path = os.path.join(args.data_path, args.dev_file)
         dev_dataset = NetworkDatasetPassageMatching(dev_data_path)
+        if args.dev_dataset_size:
+            dev_dataset = Subset(dev_dataset, np.arange(args.dev_dataset_size) - int(args.dev_dataset_size/2))
         if args.eval_all_checkpoints:
             if not os.path.isdir(args.train.output_dir):
                 raise ValueError("cfg.train.output_dir NOT exists!")
