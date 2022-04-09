@@ -1,1 +1,1 @@
-from .MLPBert import MLPBert, DotBert
+from .MLPBert import MLPBert

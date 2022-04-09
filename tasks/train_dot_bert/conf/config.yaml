@@ -4,11 +4,13 @@ io:
   checkpoint_dir: './checkpoints'
   num_checkpoints: 8
   every_n_epochs: 1
-  every_n_train_steps: 20000
+  every_n_train_steps: 10000
+  val_check_interval: 10000
 
 model:
   bert_model_name: 'bert-base-uncased'
   bert_num_feature: 768
+  loss_type: "mse"
 
 dataset:
   train_dataset_path: '../../data/neo_converted/nullptr_no_feature_whole.pkl'
@@ -16,11 +18,13 @@ dataset:
   test_dataset_path: '../../data/neo_converted/nullptr_no_feature_test.pkl'
   author_token_length: 128
   abstract_token_length: 128
+  pos_edges_only: false
 
 train:
   batch_size: 24
   lr: 0.001
   max_epochs: 10
+  optimizer: "sgd"
 
 test:
   batch_size: 16

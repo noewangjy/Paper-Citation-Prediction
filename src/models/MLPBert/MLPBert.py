@@ -33,16 +33,3 @@ class MLPBert(nn.Module):
         return out
 
 
-class DotBert(nn.Module):
-    def __init__(self,
-                 bert_model_name: str = 'bert-base-uncased',
-                 bert_num_feature: int = 768):
-        super().__init__()
-        self.abstract_model = AutoModel.from_pretrained(bert_model_name)
-        self.metrics = torch.nn.CosineSimilarity(dim=-1, eps=1e-08)
-
-    def forward(self, u_abstracts, v_abstracts):
-        u_abstracts_embed = self.abstract_model(u_abstracts, torch.zeros_like(u_abstracts)).pooler_output
-        v_abstracts_embed = self.abstract_model(v_abstracts, torch.zeros_like(v_abstracts)).pooler_output
-        cos_sim = self.metrics(u_abstracts_embed, v_abstracts_embed)
-        return torch.div(torch.add(cos_sim, 1), 2).view(-1, 1)

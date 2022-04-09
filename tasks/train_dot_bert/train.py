@@ -21,8 +21,13 @@ from src.utils.driver import NetworkDatasetMLPBert
 from src.utils.submmision import generate_submission
 
 
-def compute_train_loss(pred: torch.Tensor, label: torch.Tensor):
-    return torch_f.binary_cross_entropy(pred.to(torch.float32), label.to(torch.float32))
+def compute_train_loss(pred: torch.Tensor, label: torch.Tensor, loss_type: str = "mse"):
+    if loss_type == "bce":
+        return torch_f.binary_cross_entropy(pred.to(torch.float32), label.to(torch.float32))
+    elif loss_type == "mse":
+        return torch_f.mse_loss(pred.to(torch.float32), label.to(torch.float32))
+    else:
+        raise NotImplementedError
 
 
 def compute_acc(pred: torch.Tensor, label: torch.Tensor):
@@ -32,17 +37,18 @@ def compute_acc(pred: torch.Tensor, label: torch.Tensor):
 
 
 def prepare_graph(cfg,
-                  tokenizer: AutoTokenizer,
-                  device: torch.device = torch.device('cpu')) -> {}:
+                  tokenizer: AutoTokenizer) -> {}:
     print("Preparing graphs - Unpickling")
     graphs = {'train_set': NetworkDatasetMLPBert(to_absolute_path(cfg.train_dataset_path),
                                                  tokenizer,
                                                  cfg.author_token_length,
-                                                 cfg.abstract_token_length),
+                                                 cfg.abstract_token_length,
+                                                 cfg.pos_edges_only),
               'dev_set': NetworkDatasetMLPBert(to_absolute_path(cfg.dev_dataset_path),
                                                tokenizer,
                                                cfg.author_token_length,
-                                               cfg.abstract_token_length),
+                                               cfg.abstract_token_length,
+                                               cfg.pos_edges_only),
               'test_set': NetworkDatasetMLPBert(to_absolute_path(cfg.test_dataset_path),
                                                 tokenizer,
                                                 cfg.author_token_length,
@@ -50,12 +56,6 @@ def prepare_graph(cfg,
               }
     print("Preparing graphs - Creating sub graphs")
     graphs['num_nodes'] = graphs['train_set'].graph.number_of_nodes()
-    graphs['train_graph'] = dgl.graph((graphs['train_set'].u, graphs['train_set'].v), num_nodes=graphs['num_nodes']).to(device)
-    graphs['train_pos_graph'] = dgl.graph((graphs['train_set'].pos_u, graphs['train_set'].pos_v), num_nodes=graphs['num_nodes']).to(device)
-    graphs['train_neg_graph'] = dgl.graph((graphs['train_set'].neg_u, graphs['train_set'].neg_v), num_nodes=graphs['num_nodes']).to(device)
-    graphs['dev_graph'] = dgl.graph((graphs['dev_set'].u, graphs['dev_set'].v), num_nodes=graphs['num_nodes']).to(device)
-    graphs['dev_pos_graph'] = dgl.graph((graphs['dev_set'].pos_u, graphs['dev_set'].pos_v), num_nodes=graphs['num_nodes']).to(device)
-    graphs['dev_neg_graph'] = dgl.graph((graphs['dev_set'].neg_u, graphs['dev_set'].neg_v), num_nodes=graphs['num_nodes']).to(device)
 
     return graphs
 
@@ -72,6 +72,7 @@ class MLPSolution(pl.LightningModule):
         self.global_logger = global_logger
         self.model = DotBert(bert_model_name=self.hydra_config.model.bert_model_name,
                              bert_num_feature=self.hydra_config.model.bert_num_feature)
+        self.loss_type = hydra_cfg.model.loss_type
         self.automatic_optimization = False
         self.save_hyperparameters(self.hydra_config)
         self.epoch_idx: int = 0
@@ -91,7 +92,9 @@ class MLPSolution(pl.LightningModule):
         optimizer.zero_grad()
         u, v, u_deg, v_deg, uv_deg_diff, u_authors, v_authors, u_abstracts, v_abstracts, label = sample
         pred = self(u_abstracts, v_abstracts)
-        loss = compute_train_loss(pred, label)
+        if self.loss_type == "mse":
+            label = torch.sub(torch.mul(label, 2), 1)
+        loss = compute_train_loss(pred, label, self.loss_type)
 
         self.manual_backward(loss)
         optimizer.step()
@@ -101,15 +104,19 @@ class MLPSolution(pl.LightningModule):
     def manual_backward(self, loss: torch.Tensor, *args, **kwargs) -> None:
         loss.backward()
 
-    def on_train_epoch_end(self) -> None:
-        self.epoch_idx += 1
+    @rank_zero_only
+    def log_params(self):
+        self.global_logger.info("Logging params")
         for name, param in self.model.named_parameters():
             if 'bn' not in name:
-                self.logger.experiment.add_histogram('model_params' + name, param, self.epoch_idx)
+                self.log('model_params' + name, param)
+                # self.logger.experiment.add_histogram('model_params' + name, param, self.global_step)
+
+    def on_train_epoch_end(self) -> None:
+        self.epoch_idx += 1
 
     def on_train_start(self) -> None:
         pass
-        # self.epoch_idx = 0
 
     def on_validation_epoch_start(self) -> None:
         self.accuracy_matrix.reset()
@@ -118,12 +125,16 @@ class MLPSolution(pl.LightningModule):
         sample = batch
         u, v, u_deg, v_deg, uv_deg_diff, u_authors, v_authors, u_abstracts, v_abstracts, label = sample
         pred = self(u_abstracts, v_abstracts)
-        loss = compute_train_loss(pred, label)
+        if self.loss_type == "mse":
+            label = torch.sub(torch.mul(label, 2), 1)
+        loss = compute_train_loss(pred, label, self.loss_type)
         return {'val_loss': loss}
 
     def validation_epoch_end(self, outputs):
+        self.global_logger.info("Validation Epoch End")
         avg_loss = torch.tensor([x['val_loss'].mean() for x in outputs]).mean()
         self.log('val_avg_loss', avg_loss)
+        self.log_params()
 
         return {'val_avg_loss': avg_loss}
 
@@ -132,27 +143,32 @@ class MLPSolution(pl.LightningModule):
     #     if self.skip_first_submission_generation:
     #         self.skip_first_submission_generation = False
     #     else:
-    #         try:
-    #             self.eval()  # FIXME: Add only for testing
-    #             test_result: List[np.ndarray] = []
-    #             test_u: List[np.ndarray] = []
-    #             with torch.no_grad():
-    #                 with tqdm.tqdm(range(len(self.test_loader))) as pbar:
-    #                     for idx, sample in enumerate(self.test_loader):
-    #                         u, v, u_deg, v_deg, uv_deg_diff, u_authors, v_authors, u_abstracts, v_abstracts, _ = map(lambda x: (torch.unsqueeze(x, 0) if len(x.shape) == 1 else x).to(self.device), sample)
-    #                         pred = self(u_abstracts, v_abstracts)
-    #                         test_result.append(pred.detach().cpu().numpy())
-    #                         test_u.append(u.detach().cpu().numpy())
-    #                         if idx % 10 == 0: pbar.update(10)
+    #         with torch.no_grad():
+    #             try:
+    #                 test_result: List[np.ndarray] = []
+    #                 test_u: List[np.ndarray] = []
+    #                 with torch.no_grad():
+    #                     with tqdm.tqdm(range(len(self.test_loader))) as pbar:
+    #                         for idx, sample in enumerate(self.test_loader):
+    #                             u, v, u_deg, v_deg, uv_deg_diff, u_authors, v_authors, u_abstracts, v_abstracts, _ = map(lambda x: (torch.unsqueeze(x, 0) if len(x.shape) == 1 else x).to(self.device), sample)
+    #                             pred = self(u_abstracts, v_abstracts)
+    #                             test_result.append(pred.detach().cpu().numpy())
+    #                             test_u.append(u.detach().cpu().numpy())
+    #                             if idx % 10 == 0: pbar.update(10)
     #
-    #             generate_submission(f'./submissions/epoch_{self.epoch_idx}', np.concatenate(test_result))
-    #             # generate_submission(f'./epoch{self.epoch_idx}_index', np.concatenate(test_u))
-    #             np.savetxt(f'./submissions/epoch_{self.epoch_idx}/index.txt', np.concatenate(test_u), delimiter=', ', fmt="%d")
-    #         except Exception as e:
-    #             self.global_logger.error(e)
+    #                 generate_submission(f'./submissions/epoch_{self.epoch_idx}', np.concatenate(test_result))
+    #                 # generate_submission(f'./epoch{self.epoch_idx}_index', np.concatenate(test_u))
+    #                 np.savetxt(f'./submissions/epoch_{self.epoch_idx}/index.txt', np.concatenate(test_u), delimiter=', ', fmt="%d")
+    #             except Exception as e:
+    #                 self.global_logger.error(e)
 
     def configure_optimizers(self):
-        return torch.optim.Adam(self.model.parameters(), lr=self.hydra_config.train.lr, weight_decay=0.)
+        if self.hydra_config.train.optimizer in ["sgd", "SGD"]:
+            return torch.optim.SGD(self.model.parameters(), lr=self.hydra_config.train.lr)
+        elif self.hydra_config.train.optimizer in ["adam", "Adam"]:
+            return torch.optim.Adam(self.model.parameters(), lr=self.hydra_config.train.lr, weight_decay=0.)
+        else:
+            raise NotImplementedError
 
 
 @hydra.main(config_path="conf", config_name="config")
@@ -168,10 +184,9 @@ def run(cfg):
     # >>>>>> Beg Init >>>>>>
     torch.manual_seed(SEED)
     graphs = prepare_graph(cfg.dataset,
-                           tokenizer,
-                           DEVICE)
+                           tokenizer)
     train_set = Subset(graphs['train_set'], range(1000)) if DEBUG else graphs['train_set']
-    dev_set = Subset(graphs['dev_set'], range(100)) if DEBUG else graphs['dev_set']
+    dev_set = Subset(graphs['dev_set'], range(1000)) if DEBUG else graphs['dev_set']
     test_set = Subset(graphs['test_set'], range(1000)) if DEBUG else graphs['test_set']
 
     train_loader = DataLoader(train_set,
@@ -215,7 +230,7 @@ def run(cfg):
                          callbacks=[checkpoint_callback,
                                     TQDMProgressBar(refresh_rate=10)],
                          enable_checkpointing=True,
-                         # val_check_interval=cfg.io.val_check_interval,
+                         val_check_interval=None if DEBUG else cfg.io.val_check_interval,
                          # progress_bar_refresh_rate=10,
                          default_root_dir=cfg.io.checkpoint_dir,
                          logger=logger)

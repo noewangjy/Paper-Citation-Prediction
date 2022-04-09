@@ -129,10 +129,15 @@ class NetworkDatasetMLPBert(NetworkDatasetBase):
                  dataset_path: str,
                  tokenizer: AutoTokenizer,
                  author_token_length: int = 128,
-                 abstract_token_length: int = 512):
+                 abstract_token_length: int = 512,
+                 pos_edges_only: bool = False):
         NetworkDatasetBase.__init__(self, dataset_path)
         self.tokenizer = tokenizer
-        self.length = len(self.data['u'])
+        self.pos_edges_only = pos_edges_only
+        if self.pos_edges_only:
+            self.length = len(self.data['pos_u'])
+        else:
+            self.length = len(self.data['u'])
         self.author_token_length = author_token_length
         self.abstract_token_length = abstract_token_length
 
@@ -147,7 +152,10 @@ class NetworkDatasetMLPBert(NetworkDatasetBase):
         return res
 
     def __getitem__(self, item):
-        u, v, y = self.u[item], self.v[item], self.y[item]
+        if self.pos_edges_only:
+            u, v, y = self.pos_u[item], self.pos_v[item], 1
+        else:
+            u, v, y = self.u[item], self.v[item], self.y[item]
         u_authors = self.convert_to_token(','.join(self.authors[u]), self.author_token_length)
         v_authors = self.convert_to_token(','.join(self.authors[v]), self.author_token_length)
 

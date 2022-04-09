@@ -135,25 +135,25 @@ class MLPSolution(pl.LightningModule):
     def on_validation_end(self) -> None:
         if self.skip_submission_generation:
             self.skip_submission_generation = False
-            try:
-                self.eval()  # FIXME: Add only for testing
-                test_result: List[np.ndarray] = []
-                test_u: List[np.ndarray] = []
-                with torch.no_grad():
-                    with tqdm.tqdm(range(len(self.test_loader))) as pbar:
-                        for idx, sample in enumerate(self.test_loader):
-                            u, v, u_deg, v_deg, uv_deg_diff, u_authors, v_authors, u_abstracts, v_abstracts, _ = map(lambda x: (torch.unsqueeze(x, 0) if len(x.shape) == 1 else x).to(self.device), sample)
-                            pred = self(u_deg, v_deg, uv_deg_diff, u_authors, v_authors, u_abstracts, v_abstracts)
-                            pred_softmax = torch.softmax(pred, dim=-1)
-                            test_result.append(pred_softmax[:, 1].detach().cpu().numpy())
-                            test_u.append(u.detach().cpu().numpy())
-                            if idx % 10 == 0: pbar.update(10)
+            with torch.no_grad():
+                try:
+                    test_result: List[np.ndarray] = []
+                    test_u: List[np.ndarray] = []
+                    with torch.no_grad():
+                        with tqdm.tqdm(range(len(self.test_loader))) as pbar:
+                            for idx, sample in enumerate(self.test_loader):
+                                u, v, u_deg, v_deg, uv_deg_diff, u_authors, v_authors, u_abstracts, v_abstracts, _ = map(lambda x: (torch.unsqueeze(x, 0) if len(x.shape) == 1 else x).to(self.device), sample)
+                                pred = self(u_deg, v_deg, uv_deg_diff, u_authors, v_authors, u_abstracts, v_abstracts)
+                                pred_softmax = torch.softmax(pred, dim=-1)
+                                test_result.append(pred_softmax[:, 1].detach().cpu().numpy())
+                                test_u.append(u.detach().cpu().numpy())
+                                if idx % 10 == 0: pbar.update(10)
 
-                generate_submission(f'./submissions/epoch_{self.epoch_idx}', np.concatenate(test_result))
-                # generate_submission(f'./epoch{self.epoch_idx}_index', np.concatenate(test_u))
-                np.savetxt(f'./submissions/epoch_{self.epoch_idx}/index.txt', np.concatenate(test_u), delimiter=', ', fmt="%d")
-            except Exception as e:
-                self.global_logger.error(e)
+                    generate_submission(f'./submissions/epoch_{self.epoch_idx}', np.concatenate(test_result))
+                    # generate_submission(f'./epoch{self.epoch_idx}_index', np.concatenate(test_u))
+                    np.savetxt(f'./submissions/epoch_{self.epoch_idx}/index.txt', np.concatenate(test_u), delimiter=', ', fmt="%d")
+                except Exception as e:
+                    self.global_logger.error(e)
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.model.parameters(), lr=self.hydra_config.train.lr, weight_decay=0.)
