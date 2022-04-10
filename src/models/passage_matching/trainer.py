@@ -481,7 +481,7 @@ class BiEncoderTrainer(object):
         with open(os.path.join(cfg.output_dir, "dev_result.txt"), "a") as f:
             f.write(f"{tag}: NLL loss: {total_loss}, accuracy: {correct_ratio}\n")
 
-    def predict(self, test_dataset: Dataset, write_file: bool = False, tag: str = None) -> List[float]:
+    def predict(self, test_dataset: Dataset, write_file: bool = True, tag: str = None) -> List[float]:
         cfg = self.args.train
 
         if not self.model or not self.tensorizer:
