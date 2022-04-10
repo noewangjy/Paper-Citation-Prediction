@@ -19,9 +19,14 @@ class EmbeddingClassifier(pl.LightningModule):
         self.linear2 = nn.Linear(config.model.hidden_size, 2)
         self.global_logger = global_logger
 
-    def forward(self, input_ids: T):
-        embedding = self.embedding(input_ids)
+    def forward(self, u: T, v: T):
+        # u_embedding.size() = [batch_size, embedding_dim]
+        u_embedding = self.embedding(u)
+        v_embedding = self.embedding(v)
+        # TODO: Modify this part
+        embedding = u_embedding * v_embedding
         out = self.linear2(F.relu(self.linear1(embedding)))
+        # End of modification
         scores = F.softmax(out, dim=1)
         return scores
 
@@ -32,11 +37,12 @@ class EmbeddingClassifier(pl.LightningModule):
         return optimizer
 
     def training_step(self, batch, batch_idx):
-        nodes = batch["nodes"]
-        label = batch["label"]
+        u = batch["u"]
+        v = batch["v"]
+        y = batch["y"]
         # label = F.one_hot(label, num_classes=2).squeeze(1)
-        pred = self(nodes)
-        loss = F.cross_entropy(pred, label, reduction="mean")
+        pred = self(u, v)
+        loss = F.cross_entropy(pred, y, reduction="mean")
         self.manual_backward(loss)
         self.log("train_loss", loss)
         return {'loss': loss}
@@ -58,10 +64,11 @@ class EmbeddingClassifier(pl.LightningModule):
         pass
 
     def validation_step(self, batch, batch_idx):
-        nodes = batch["nodes"]
-        label = batch["label"]
-        pred = self(nodes)
-        loss = F.cross_entropy(pred, label, reduction="mean")
+        u = batch["u"]
+        v = batch["v"]
+        y = batch["y"]
+        pred = self(u, v)
+        loss = F.cross_entropy(pred, y, reduction="mean")
         self.log('val_loss', loss)
         return {'val_loss': loss}
 

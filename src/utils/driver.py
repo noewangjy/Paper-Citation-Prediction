@@ -324,8 +324,9 @@ class NetworkDatasetEmbeddingClassification(NetworkDatasetBase):
     def __getitem__(self, item):
 
         return {
-            'nodes': torch.tensor([self.u[item], self.v[item]], dtype=torch.long),
-            'label': self.y[item]
+            'u': torch.tensor(self.u[item], dtype=torch.long),
+            'v': torch.tensor(self.v[item], dtype=torch.long)
+            'y': self.y[item]
         }
 
     def __len__(self):
