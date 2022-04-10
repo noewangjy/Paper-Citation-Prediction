@@ -14,17 +14,22 @@ from hydra.utils import to_absolute_path
 @hydra.main(config_path="conf", config_name="config")
 def main(args):
     train_dataset = NetworkDatasetEmbeddingClassification(to_absolute_path(args.data.train_file))
-    train_dataset = Subset(train_dataset, np.arange(args.data.train_size)-int(args.data.train_size))
+    if args.data.train_size:
+        train_dataset = Subset(train_dataset, np.arange(args.data.train_size)-int(args.data.train_size))
     dev_dataset = NetworkDatasetEmbeddingClassification(to_absolute_path(args.data.dev_file))
-    dev_dataset = Subset(dev_dataset, np.arange(args.data.dev_size) - int(args.data.dev_size))
+    if args.data.dev_size:
+        dev_dataset = Subset(dev_dataset, np.arange(args.data.dev_size) - int(args.data.dev_size))
 
-    args.model.vocab_size = len(train_dataset.dataset.abstracts)
+    test_dataset = NetworkDatasetEmbeddingClassification(to_absolute_path(args.data.test_file))
+
+    args.model.vocab_size = len(train_dataset.dataset.abstracts) if hasattr(train_dataset, "dataset") else len(train_dataset.abstracts)
+
 
     train_loader = DataLoader(
         train_dataset,
         batch_size=args.train.batch_size,
         shuffle=True,
-        pin_memory=True,
+        # pin_memory=True,
         num_workers=args.train.num_workers,
         persistent_workers=True
     )
@@ -33,7 +38,15 @@ def main(args):
         dev_dataset,
         batch_size=args.train.batch_size,
         shuffle=False,
-        pin_memory=True,
+        # pin_memory=True,
+        num_workers=args.train.num_workers,
+        persistent_workers=True
+    )
+
+    test_loader = DataLoader(
+        test_dataset,
+        batch_size=args.train.batch_size,
+        shuffle=False,
         num_workers=args.train.num_workers,
         persistent_workers=True
     )
@@ -42,8 +55,8 @@ def main(args):
 
     checkpoint_callback = pl.callbacks.ModelCheckpoint(
         dirpath="checkpoints",
-        filename="{epoch}--{step}--{val_avg_loss:.4f}",
-        monitor="val_avg_loss",
+        filename="{epoch}--{step}--{val_epoch_loss:.4f}",
+        monitor="val_epoch_loss",
         save_last=True,
         save_top_k=args.train.num_checkpoints,
         mode="min",
@@ -67,7 +80,7 @@ def main(args):
 
     global_logger = logging.getLogger(__name__)
     global_logger.info("Start training")
-    model = EmbeddingClassifier(args, global_logger=global_logger)
+    model = EmbeddingClassifier(args, global_logger=global_logger, test_loader=test_loader)
     trainer.fit(model, train_loader, dev_loader)
 
 
