@@ -534,8 +534,7 @@ class BiEncoderTrainer(object):
 
             # scores,size = (batch_size, batch_size)
             softmax_scores = nn.functional.softmax(outputs, dim=1)
-            predictions = torch.argmax(softmax_scores, dim=1)
-            predictions = predictions.detach().cpu().numpy()
+            predictions = softmax_scores.detach().cpu().numpy()[:, 1]
             all_predictions.extend(predictions)
 
         if write_file:
