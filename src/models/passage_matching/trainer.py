@@ -16,6 +16,7 @@ import time
 import timeit
 from typing import Tuple, List
 import numpy as np
+from hydra.utils import to_absolute_path
 
 import torch
 from torch import Tensor as T
@@ -147,8 +148,8 @@ class BiEncoderTrainer(object):
 
     def init_biencoder(self) -> Tuple[int, int]:
         saved_state = None
-        if os.path.isfile(self.args.train.model_name_or_path):
-            saved_state = load_states_from_checkpoint(self.args.train.model_name_or_path)
+        if os.path.isfile(to_absolute_path(self.args.train.model_name_or_path)):
+            saved_state = load_states_from_checkpoint(to_absolute_path(self.args.train.model_name_or_path))
             self.args.biencoder = saved_state.biencoder_args
             logger.info("Using saved bi-encoder config: ", self.args.biencoder)
         else:
@@ -364,10 +365,10 @@ class BiEncoderTrainer(object):
                                               global_steps)
                     self.tb_writer.add_text('train_step_loss', 'train_step_loss')
 
-                    if global_steps >= total_steps:
-                        logger.info("Training finished by max_steps: {}".format(cfg.max_steps))
-                        self.save_checkpoint(scheduler, epoch=epoch, tag=str(cfg.max_steps))
-                        return
+                    # if global_steps >= total_steps:
+                    #     logger.info("Training finished by max_steps: {}".format(cfg.max_steps))
+                    #     self.save_checkpoint(scheduler, epoch=epoch, tag=str(cfg.max_steps))
+                    #     return
 
             epoch_loss = epoch_loss / steps_trained_in_current_epoch
             epoch_acc = epoch_correct_predictions / len(train_dataset)

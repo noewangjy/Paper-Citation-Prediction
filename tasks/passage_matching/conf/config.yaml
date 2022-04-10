@@ -11,11 +11,11 @@ dev_file: "nullptr_no_feature_dev.pkl"
 test_file: "nullptr_no_feature_test.pkl"
 
 
-do_train: True
-do_eval: True
+do_train: False
+do_eval: False
 do_predict: True
 eval_all_checkpoints: True
-predict_all_checkpoints: True
+predict_all_checkpoints: False
 biencoder_type: "Auto"
 
 train_dataset_size: 80000
