@@ -4,7 +4,7 @@ defaults:
 
 
 data:
-  train_file: '../../data/neo_converted/nullptr_no_feature_whole.pkl'
+  train_file: '../../data/neo_converted/nullptr_no_feature_train.pkl'
   dev_file: '../../data/neo_converted/nullptr_no_feature_dev.pkl'
   test_file: '../../data/neo_converted/nullptr_no_feature_test.pkl'
   train_size: 8000
@@ -14,11 +14,11 @@ train:
   num_epochs: 4
 
   batch_size: 12
-  num_workers: 1
+  num_workers: 4
   log_dir: "logs"
-  num_checkpoints: 1
-  every_n_train_steps: 100
-  val_check_interval: 20
+  num_checkpoints: 10
+  every_n_train_steps: 1000
+  val_check_interval: 200
   learning_rate: 1e-4
   weight_decay: 0.0
 
