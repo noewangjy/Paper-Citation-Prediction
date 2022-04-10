@@ -18,6 +18,7 @@ class EmbeddingClassifier(pl.LightningModule):
         self.linear1 = nn.Linear(config.model.embedding_dim, config.model.hidden_size)
         self.linear2 = nn.Linear(config.model.hidden_size, 2)
         self.global_logger = global_logger
+        self.automatic_optimization = False
 
     def forward(self, u: T, v: T):
         # u_embedding.size() = [batch_size, embedding_dim]

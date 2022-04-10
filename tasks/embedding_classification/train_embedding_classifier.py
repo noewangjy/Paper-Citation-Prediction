@@ -53,14 +53,16 @@ def main(args):
     )
 
     trainer = pl.Trainer(
-        # gpus=args.machine.gpus,
+        accelerator="gpu",
+        devices=args.machine.gpus,
         max_epochs=args.train.num_epochs,
         callbacks=[checkpoint_callback,
                    pl.callbacks.TQDMProgressBar(refresh_rate=10)],
         enable_checkpointing=True,
         val_check_interval=args.train.val_check_interval,
         default_root_dir=args.model.checkpoint_path,
-        logger=logger
+        logger=logger,
+        num_sanity_val_steps=0,
     )
 
     global_logger = logging.getLogger(__name__)
