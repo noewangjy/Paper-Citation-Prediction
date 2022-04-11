@@ -1,6 +1,6 @@
 defaults:
   - _self_
-  - machine: lab1527
+  - machine: mercury
 
 
 data:
@@ -11,14 +11,14 @@ data:
   dev_size:
 
 train:
-  num_epochs: 50
+  num_epochs: 1000
 
-  batch_size: 64
-  num_workers: 4
-  log_dir: "logs"
+  batch_size: 640
+  num_workers: 8
+  log_dir: "./logs"
   num_checkpoints: 10
-  every_n_train_steps: 10000
-  val_check_interval: 10000
+  every_n_train_steps:
+  val_check_interval:
   learning_rate: 1e-4
   weight_decay: 0.0
 
@@ -29,7 +29,7 @@ train:
 
 model:
   vocab_size:
-  embedding_dim: 1024
+  embedding_dim: 10
   hidden_size1: 256
   hidden_size2: 32
   checkpoint_path: "./checkpoints"

@@ -14,7 +14,6 @@ from src.utils.submmision import generate_submission
 class EmbeddingClassifier(pl.LightningModule):
     def __init__(self,
                  config: DictConfig,
-                 global_logger: logging.Logger,
                  test_loader: DataLoader
                  ):
         super().__init__()
@@ -22,18 +21,18 @@ class EmbeddingClassifier(pl.LightningModule):
         self.config = config
         self.test_loader = test_loader
         self.embedding = nn.Embedding(config.model.vocab_size, config.model.embedding_dim)
-        self.classifier = nn.Sequential(
-            nn.BatchNorm1d(config.model.embedding_dim),
-            nn.Linear(config.model.embedding_dim, config.model.hidden_size1),
-            nn.ReLU(),
-            nn.BatchNorm1d(config.model.hidden_size1),
-            nn.Linear(config.model.hidden_size1, config.model.hidden_size2),
-            nn.ReLU(),
-            nn.BatchNorm1d(config.model.hidden_size2),
-            nn.Linear(config.model.hidden_size2, 2)
-        )
+        self.classifier = nn.Linear(config.model.embedding_dim, 2)
+        # self.classifier = nn.Sequential(
+        #     nn.BatchNorm1d(config.model.embedding_dim),
+        #     nn.Linear(config.model.embedding_dim, config.model.hidden_size1),
+        #     nn.ReLU(),
+        #     nn.BatchNorm1d(config.model.hidden_size1),
+        #     nn.Linear(config.model.hidden_size1, config.model.hidden_size2),
+        #     nn.ReLU(),
+        #     nn.BatchNorm1d(config.model.hidden_size2),
+        #     nn.Linear(config.model.hidden_size2, 2)
+        # )
 
-        self.global_logger = global_logger
         self.automatic_optimization = False
 
     def forward(self, u: T, v: T):

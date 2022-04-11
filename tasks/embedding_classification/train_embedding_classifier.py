@@ -24,7 +24,6 @@ def main(args):
 
     args.model.vocab_size = len(train_dataset.dataset.abstracts) if hasattr(train_dataset, "dataset") else len(train_dataset.abstracts)
 
-
     train_loader = DataLoader(
         train_dataset,
         batch_size=args.train.batch_size,
@@ -72,7 +71,7 @@ def main(args):
         callbacks=[checkpoint_callback,
                    pl.callbacks.TQDMProgressBar(refresh_rate=10)],
         enable_checkpointing=True,
-        val_check_interval=args.train.val_check_interval,
+        # val_check_interval=args.train.val_check_interval,
         default_root_dir=args.model.checkpoint_path,
         logger=logger,
         num_sanity_val_steps=0,
@@ -80,7 +79,7 @@ def main(args):
 
     global_logger = logging.getLogger(__name__)
     global_logger.info("Start training")
-    model = EmbeddingClassifier(args, global_logger=global_logger, test_loader=test_loader)
+    model = EmbeddingClassifier(args, test_loader=test_loader)
     trainer.fit(model, train_loader, dev_loader)
 
 
