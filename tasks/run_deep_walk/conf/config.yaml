@@ -1,0 +1,18 @@
+dataset:
+  train_dataset_path: "../../data/converted/nullptr_graph_conv_whole.pkl"
+  dev_dataset_path: "../../data/converted/nullptr_graph_conv_dev.pkl"
+  test_dataset_path: '../../data/converted/nullptr_graph_conv_test.pkl'
+
+train:
+  num_walks: 10
+  walk_length: 25
+  n_dim: 192
+  window: 8
+  min_count: 0
+  sg: 1
+  workers: 24
+  hs: 1
+  epochs: 30
+
+io:
+  embedding_save_path: './embeddings.pkl'

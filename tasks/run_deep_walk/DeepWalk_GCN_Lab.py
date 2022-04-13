@@ -209,20 +209,20 @@ vecs_tsne = my_tsne.fit_transform(vecs_pca)
 plt.figure(figsize=(7,7))
 plt.title("TSNE visualisation of the DeepWalk embeddings")
 colours = sns.color_palette("hls", n_class)
-sns.scatterplot(x=vecs_tsne[:,0], y=vecs_tsne[:,1], hue=class_labels, legend='full', palette=colours)
+sns.scatterplot(x=vecs_tsne[:,0], y=vecs_tsne[:,1], hue=class_labels.detach().cpu().numpy(), legend='full', palette=colours)
 plt.show()
 
 # %% [markdown]
 # We will further evaluate the quality of the generated embeddings in a supervised node classification task. Specifically, we will feed the generated embeddings into a standard multinomial logisitic regression classifier.
 
 # %%
-X_train = DeepWalk_embeddings[idx_train,:]
-X_test = DeepWalk_embeddings[idx_test,:]
+X_train = DeepWalk_embeddings[idx_train.detach().cpu().numpy(),:]
+X_test = DeepWalk_embeddings[idx_test.detach().cpu().numpy(),:]
 
 clf = LogisticRegression(max_iter=1300)
-clf.fit(X_train, class_labels_train)
+clf.fit(X_train, class_labels_train.detach().cpu().numpy())
 y_pred = clf.predict(X_test)
-print("Accuracy using DeepWalk embeddings", accuracy_score(class_labels_test, y_pred))
+print("Accuracy using DeepWalk embeddings", accuracy_score(class_labels_test.detach().cpu().numpy(), y_pred))
 
 # %% [markdown]
 # ## 2) Graph Convolutional Networks
@@ -412,8 +412,8 @@ vecs_tsne = my_tsne.fit_transform(vecs_pca)
 
 plt.figure(figsize=(7,7))
 plt.title("TSNE visualisation of the GCN embeddings")
-colours = sns.color_palette("hls", len(np.unique(class_labels)))
-sns.scatterplot(x=vecs_tsne[:,0], y=vecs_tsne[:,1], hue=class_labels, legend='full', palette=colours)
+colours = sns.color_palette("hls", len(np.unique(class_labels.detach().cpu().numpy())))
+sns.scatterplot(x=vecs_tsne[:,0], y=vecs_tsne[:,1], hue=class_labels.detach().cpu().numpy(), legend='full', palette=colours)
 
 
 plt.show()
