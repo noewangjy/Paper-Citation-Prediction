@@ -12,10 +12,13 @@ from torch.utils.data import DataLoader
 from transformers import AutoTokenizer
 import tqdm
 import sys
+import pickle
 
 from src.models import GraphSAGEBundled
 from src.utils.driver import NetworkDatasetGraphSAGEBert
 from src.utils.submmision import generate_submission
+
+from train import prepare_graph
 
 
 @hydra.main(config_path='conf', config_name='submit')
@@ -23,28 +26,24 @@ def run(cfg):
     # >>>>>> Beg Configuration >>>>>>
     DEVICE = torch.device('cuda:3')
     # DEVICE = torch.device('cpu') if len(cfg.machine.gpus) <= 0 else torch.device(f'cuda:{cfg.machine.gpus[0]}')
-    test_set = NetworkDatasetGraphSAGEBert(to_absolute_path(cfg.test_dataset_path),
-                                           to_absolute_path(cfg.features_path))
-    train_set = NetworkDatasetGraphSAGEBert(to_absolute_path(cfg.test_dataset_path),
-                                            to_absolute_path(cfg.features_path))
-    features = test_set.node_features.to(DEVICE)
-    num_features = test_set.data['node_features'].shape[1]
-    num_nodes = test_set.graph.number_of_nodes()
+    graphs = prepare_graph(cfg, device=DEVICE)
 
-    test_graph = dgl.graph((test_set.u, test_set.v), num_nodes=num_nodes).to(DEVICE)
-    train_graph = dgl.graph((train_set.u, train_set.v), num_nodes=num_nodes).to(DEVICE)
-
-    model = GraphSAGEBundled(num_features,
+    model = GraphSAGEBundled(graphs['num_features'],
                              cfg.model.hidden_dims, cfg.model.predictor)
     model.load_state_dict({".".join(k.split(".")[1:]): v.to(DEVICE) for k, v in torch.load(to_absolute_path(cfg.state_dict_path))['state_dict'].items()})
     model.to(DEVICE)
     # <<<<<< End Configuration <<<<<<
 
+    train_graph = graphs['train_graph']
+    features = graphs['features']
+    test_graph = graphs['test_graph']
     h = model(train_graph, features)
     scores = model.predictor(test_graph, h)
-    scores = torch.sigmoid(scores)
+    scores_sigmoid = torch.sigmoid(scores)
     scores_np = scores.detach().cpu().numpy()
-    generate_submission('.', scores_np)
+    scores_sigmoid_np = scores_sigmoid.detach().cpu().numpy()
+    generate_submission('.', scores_np, 'no_sigmoid')
+    generate_submission('.', scores_sigmoid_np, 'sigmoid')
 
 
 if __name__ == '__main__':

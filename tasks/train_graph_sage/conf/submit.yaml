@@ -1,6 +1,7 @@
-state_dict_path: '/disk1/home/yutong/DataChallenge-graph/tasks/train_graph_sage/outputs/2022-04-06/18-41-15/checkpoints/epoch=999-val_avg_loss=0.4858.ckpt'
-test_dataset_path: '../../data/neo_converted/nullptr_no_feature_test.pkl'
-train_dataset_path: '../../data/neo_converted/nullptr_no_feature_train.pkl'
+state_dict_path: '/disk1/home/yutong/DataChallenge-graph/tasks/train_graph_sage/outputs/2022-04-11/15-18-13/checkpoints/epoch=3999-val_avg_loss=0.0850.ckpt'
+test_dataset_path: '../../data/converted/nullptr_graph_conv_test.pkl'
+dev_dataset_path: '../../data/converted/nullptr_graph_conv_dev.pkl'
+train_dataset_path: '../../data/converted/nullptr_graph_conv_whole.pkl'
 
 features_path: '../../data/abstract_features/features.pkl'
 

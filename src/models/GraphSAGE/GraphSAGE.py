@@ -83,14 +83,18 @@ class GraphSAGEBundled(nn.Module):
     def __init__(self,
                  input_dims,
                  hidden_dims,
+                 output_dims: int = None,
                  predictor: str = 'dot',
-                 aggregator: str = 'mean'):
+                 aggregator: str = 'mean',
+                 dropout: float = 0.):
         super(GraphSAGEBundled, self).__init__()
         self.hidden_dims = hidden_dims
         self.aggregator = aggregator
-        self.conv1 = SAGEConv(input_dims, hidden_dims, aggregator)
-        self.conv2 = SAGEConv(hidden_dims, hidden_dims, aggregator)
-        self.conv3 = SAGEConv(hidden_dims, hidden_dims, aggregator)
+        if output_dims is None:
+            output_dims = hidden_dims
+        self.conv1 = SAGEConv(input_dims, hidden_dims, aggregator, feat_drop=dropout)
+        self.conv2 = SAGEConv(hidden_dims, hidden_dims, aggregator, feat_drop=dropout)
+        self.conv3 = SAGEConv(hidden_dims, output_dims, aggregator, feat_drop=dropout)
 
         if predictor == 'dot':
             self.predictor = DotPredictor()

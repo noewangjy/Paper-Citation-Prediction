@@ -10,6 +10,7 @@ from pytorch_lightning import loggers as pl_logger
 from pytorch_lightning.callbacks import TQDMProgressBar
 from torch.utils.data import DataLoader
 from transformers import AutoTokenizer
+import pickle
 import tqdm
 
 from src.models import GraphSAGEBundled
@@ -22,6 +23,7 @@ def compute_train_loss(pos_score: torch.Tensor, neg_score: torch.Tensor):
     labels = torch.cat([torch.ones_like(pos_score), torch.zeros_like(neg_score)]).to(device)
     loss = torch_f.binary_cross_entropy(scores, labels)
     return loss
+
 
 @torch.no_grad()
 def compute_acc(pos_score: torch.Tensor, neg_score: torch.Tensor):
@@ -43,25 +45,28 @@ def compute_acc(pos_score: torch.Tensor, neg_score: torch.Tensor):
 def prepare_graph(cfg,
                   device: torch.device = torch.device('cpu')) -> {}:
     print("Preparing graphs - Unpickling")
-    datasets = {'train_set': NetworkDatasetGraphSAGEBert(to_absolute_path(cfg.train_dataset_path),
-                                                         to_absolute_path(cfg.features_path)),
-                'dev_set': NetworkDatasetGraphSAGEBert(to_absolute_path(cfg.dev_dataset_path),
-                                                       to_absolute_path(cfg.features_path)),
-                'test_set': NetworkDatasetGraphSAGEBert(to_absolute_path(cfg.test_dataset_path),
-                                                        to_absolute_path(cfg.features_path))
+    datasets = {'train_set': pickle.load(open(to_absolute_path(cfg.train_dataset_path), 'rb')),
+                'dev_set': pickle.load(open(to_absolute_path(cfg.dev_dataset_path), 'rb')),
+                'test_set': pickle.load(open(to_absolute_path(cfg.test_dataset_path), 'rb')),
                 }
     print("Preparing graphs - Creating sub graphs")
-    num_nodes = datasets['train_set'].graph.number_of_nodes()
-    num_features = datasets['train_set'].data['node_features'].shape[1]
-    graphs = {'features': datasets['train_set'].data['node_features'].to(device),
+    whole_graph = dgl.graph((datasets['train_set']['origin_edges'][:, 0], datasets['train_set']['origin_edges'][:, 1]))
+    num_nodes = whole_graph.number_of_nodes()
+    num_features = datasets['train_set']['cora_features'].shape[1]
+    features = torch.tensor(datasets['train_set']['cora_features'], dtype=torch.float32)
+    features /= torch.sum(features, dim=1, keepdim=True)
+    graphs = {'features': features.to(device),
               'num_nodes': num_nodes,
               'num_features': num_features,
-              'train_graph': dgl.graph((datasets['train_set'].u, datasets['train_set'].v), num_nodes=num_nodes).to(device),
-              'train_pos_graph': dgl.graph((datasets['train_set'].pos_u, datasets['train_set'].pos_v), num_nodes=num_nodes).to(device),
-              'train_neg_graph': dgl.graph((datasets['train_set'].neg_u, datasets['train_set'].neg_v), num_nodes=num_nodes).to(device), 'dev_graph': dgl.graph((datasets['dev_set'].u, datasets['dev_set'].v), num_nodes=num_nodes).to(device),
-              'dev_pos_graph': dgl.graph((datasets['dev_set'].pos_u, datasets['dev_set'].pos_v), num_nodes=num_nodes).to(device), 'dev_neg_graph': dgl.graph((datasets['dev_set'].neg_u, datasets['dev_set'].neg_v), num_nodes=num_nodes).to(device),
-              'test_graph': dgl.graph((datasets['test_set'].u, datasets['test_set'].v), num_nodes=num_nodes).to(device),
+              'train_graph': dgl.graph((datasets['train_set']['u'], datasets['train_set']['v']), num_nodes=num_nodes).to(device),
+              'train_pos_graph': dgl.graph((datasets['train_set']['pos_u'], datasets['train_set']['pos_v']), num_nodes=num_nodes).to(device),
+              'train_neg_graph': dgl.graph((datasets['train_set']['neg_u'], datasets['train_set']['neg_v']), num_nodes=num_nodes).to(device),
+              'dev_graph': dgl.graph((datasets['dev_set']['u'], datasets['dev_set']['v']), num_nodes=num_nodes).to(device),
+              'dev_pos_graph': dgl.graph((datasets['dev_set']['pos_u'], datasets['dev_set']['pos_v']), num_nodes=num_nodes).to(device),
+              'dev_neg_graph': dgl.graph((datasets['dev_set']['neg_u'], datasets['dev_set']['neg_v']), num_nodes=num_nodes).to(device),
+              'test_graph': dgl.graph((datasets['test_set']['u'], datasets['test_set']['v']), num_nodes=num_nodes).to(device),
               'test_set': datasets['test_set']}
+
     return graphs
 
 
@@ -72,6 +77,7 @@ class GraphSolution(pl.LightningModule):
         self.graphs = graphs
         self.model = GraphSAGEBundled(self.graphs['num_features'],
                                       hydra_cfg.model.hidden_dims,
+                                      hydra_cfg.model.output_dims,
                                       hydra_cfg.model.predictor,
                                       hydra_cfg.model.aggregator)
         self.automatic_optimization = False
@@ -146,6 +152,10 @@ class GraphSolution(pl.LightningModule):
     def configure_optimizers(self):
         return torch.optim.Adam(self.model.parameters(), lr=self.hydra_config.train.lr, weight_decay=0.)
 
+    def on_save_checkpoint(self, checkpoint):
+        if self.epoch_idx % self.hydra_config.io.save_interval == 0 and self.epoch_idx != 0:
+            with open(f'./epoch={self.epoch_idx}.pkl', 'wb') as f:
+                pickle.dump(self.model.hidden_state, f)
 
 @hydra.main(config_path="conf", config_name="config")
 def run(cfg):
