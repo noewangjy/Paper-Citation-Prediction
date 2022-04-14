@@ -39,7 +39,7 @@ def main(args):
             # Eval all checkpoints in train.output_dir
             for checkpoint in os.listdir(args.train.output_dir):
                 checkpoint_tokens = checkpoint.split(".")
-                if checkpoint_tokens[0] != args.train.checkpoint_file_name:
+                if checkpoint_tokens[0] != args.train.checkpoint_file_name+"_"+args.machine.biencoder:
                     continue
                 # Reset the model to load from checkpoint
                 trainer.reset_biencoder()
@@ -47,7 +47,8 @@ def main(args):
                 trainer.evaluate(dev_dataset, tag=checkpoint)
         else:
             # Eval the last trained model
-            trainer.evaluate(dev_dataset, tag="last_trained_model")
+            trainer.init_biencoder()
+            trainer.evaluate(dev_dataset, tag=args.train.model_name_or_path)
 
     if args.do_predict:
         test_data_path = os.path.join(args.data_path, args.test_file)
@@ -65,7 +66,8 @@ def main(args):
                 trainer.predict(test_dataset, tag=checkpoint)
         else:
             # Predict the last trained model
-            trainer.predict(test_dataset, tag="last_trained_model")
+            trainer.init_biencoder()
+            trainer.predict(test_dataset, tag=args.train.model_name_or_path)
 
 
 if __name__ == "__main__":

@@ -7,7 +7,7 @@ import networkx as nx
 import numpy as np
 import torch
 from torch.utils.data import Dataset
-from transformers import AutoTokenizer
+from transformers import PreTrainedTokenizer, AutoTokenizer
 import torch.nn.functional as torch_f
 
 
@@ -196,7 +196,7 @@ class NetworkDatasetSAGEBert(NetworkDatasetBase):
 
     def __init__(self,
                  dataset_path: str,
-                 tokenizer: AutoTokenizer,
+                 tokenizer: PreTrainedTokenizer,
                  author_token_length: int = 128,
                  abstract_token_length: int = 512):
         NetworkDatasetBase.__init__(self, dataset_path)
@@ -212,7 +212,8 @@ class NetworkDatasetSAGEBert(NetworkDatasetBase):
     def convert_to_token(self, string: str, length: int) -> torch.Tensor:
         res = torch.zeros(size=(length,), dtype=torch.int64)
         string_encoded = self.tokenizer.encode(string, truncation=True, max_length=length)
-        res[:min(length, len(string_encoded))] = torch.tensor(string_encoded[:min(length, len(string_encoded))], dtype=torch.int64)
+        res[:min(length, len(string_encoded))] = torch.tensor(string_encoded[:min(length, len(string_encoded))],
+                                                              dtype=torch.int64)
         return res
 
     def __getitem__(self, item):
@@ -324,22 +325,83 @@ class NetworkDatasetPassageMatching(NetworkDatasetBase):
         return self.length
 
 
+class NetworkDatasetPassageMatchingPL(NetworkDatasetBase):
+    length: int
+
+    def __init__(
+            self,
+            dataset_path: str,
+            tokenizer: PreTrainedTokenizer,
+            max_seq_len: int,
+    ):
+        NetworkDatasetBase.__init__(self, dataset_path)
+        self.length: int = len(self.u)
+        self.tokenizer: PreTrainedTokenizer = tokenizer
+        self.max_seq_len: int = max_seq_len
+
+    def __getitem__(self, item):
+        u = self.u[item]
+        v = self.v[item]
+        y = self.y[item]
+        query = self.tokenizer(
+            self.abstracts[u],
+            padding="max_length",
+            truncation=True,
+            max_length=self.max_seq_len,
+            return_tensors='pt'
+        )
+
+        context = self.tokenizer(
+            self.abstracts[v],
+            padding="max_length",
+            truncation=True,
+            max_length=self.max_seq_len,
+            return_tensors='pt'
+        )
+
+        return {
+            'query': query,
+            'context': context,
+            'label': y
+        }
+
+    def __len__(self):
+        return self.length
+
+
 class NetworkDatasetEmbeddingClassification(NetworkDatasetBase):
+
     def __init__(self, dataset_path: str):
         # super(NetworkDatasetBase, self).__init__(dataset_path)
         NetworkDatasetBase.__init__(self, dataset_path)
         self.length = len(self.u)
 
     def __getitem__(self, item):
-
         return {
-            'u': torch.tensor(self.u[item], dtype=torch.long),
-            'v': torch.tensor(self.v[item], dtype=torch.long),
-            'y': self.y[item]
+            'nodes': [self.u[item], self.v[item]],
+            'label': self.y[item]
         }
 
     def __len__(self):
         return self.length
+
+
+# class NetworkDatasetEmbeddingClassification(NetworkDatasetBase):
+#     def __init__(self, dataset_path: str):
+#         # super(NetworkDatasetBase, self).__init__(dataset_path)
+#         NetworkDatasetBase.__init__(self, dataset_path)
+#         self.length = len(self.u)
+#
+#     def __getitem__(self, item):
+#
+#         return {
+#             'u': torch.tensor(self.u[item], dtype=torch.long),
+#             'v': torch.tensor(self.v[item], dtype=torch.long),
+#             'y': self.y[item]
+#         }
+#
+#     def __len__(self):
+#         return self.length
 
 if __name__ == '__main__':
     # train_driver = NetworkDatasetBase('../../data/converted/nullptr_train.pkl')
@@ -351,9 +413,10 @@ if __name__ == '__main__':
     # print(len(train_driver))
     # train_driver = NetworkDatasetPassageMatching('../../data/neo_converted/nullptr_train.pkl')
     tokenizer = AutoTokenizer.from_pretrained('bert-base-uncased')
-    train_driver = NetworkDatasetMLPBert('../../data/neo_converted/nullptr_no_feature_train.pkl', tokenizer, pos_edges_only=True)
+    # train_driver = NetworkDatasetMLPBert('../../data/neo_converted/nullptr_no_feature_train.pkl', tokenizer)
     # tokenizer = AutoTokenizer.from_pretrained('bert-base-uncased')
-    # train_driver = NetworkDatasetGraphSAGEBert('../../data/neo_converted/nullptr_no_feature_train.pkl', '../../data/abstract_features_v1/features.pkl')
+    train_driver = NetworkDatasetGraphSAGEBert('../../data/neo_converted/nullptr_no_feature_train.pkl',
+                                               '../../data/abstract_features_v1/features.pkl')
     from torch.utils.data import DataLoader
 
     train_loader = DataLoader(train_driver, batch_size=32)

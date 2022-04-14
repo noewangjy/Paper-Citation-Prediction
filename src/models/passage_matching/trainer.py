@@ -16,6 +16,7 @@ import time
 import timeit
 from typing import Tuple, List
 import numpy as np
+from hydra.utils import to_absolute_path
 
 import torch
 from torch import Tensor as T
@@ -147,8 +148,8 @@ class BiEncoderTrainer(object):
 
     def init_biencoder(self) -> Tuple[int, int]:
         saved_state = None
-        if os.path.isfile(self.args.train.model_name_or_path):
-            saved_state = load_states_from_checkpoint(self.args.train.model_name_or_path)
+        if os.path.isfile(to_absolute_path(self.args.train.model_name_or_path)):
+            saved_state = load_states_from_checkpoint(to_absolute_path(self.args.train.model_name_or_path))
             self.args.biencoder = saved_state.biencoder_args
             logger.info("Using saved bi-encoder config: ", self.args.biencoder)
         else:
@@ -276,7 +277,6 @@ class BiEncoderTrainer(object):
         else:
             logger.info("  Starting fine-tuning from scratch")
 
-        self.model.zero_grad()
         self.model.train()
 
         set_seed(cfg)
@@ -343,14 +343,15 @@ class BiEncoderTrainer(object):
                     epoch_loss += loss.item()
 
                     # Do bi-encoder backward propagation
-                    loss.backward()
+
                     if cfg.max_grad_norm > 0:
                         torch.nn.utils.clip_grad_norm_(self.model.parameters(), cfg.max_grad_norm)
 
                     if (step + 1) % cfg.gradient_accumulation_steps == 0:
+                        self.optimizer.zero_grad()
+                        loss.backward()
                         self.optimizer.step()
                         scheduler.step()
-                        self.model.zero_grad()
 
                     global_steps += 1
                     steps_trained_in_current_epoch += 1
@@ -364,10 +365,10 @@ class BiEncoderTrainer(object):
                                               global_steps)
                     self.tb_writer.add_text('train_step_loss', 'train_step_loss')
 
-                    if global_steps >= total_steps:
-                        logger.info("Training finished by max_steps: {}".format(cfg.max_steps))
-                        self.save_checkpoint(scheduler, epoch=epoch, tag=str(cfg.max_steps))
-                        return
+                    # if global_steps >= total_steps:
+                    #     logger.info("Training finished by max_steps: {}".format(cfg.max_steps))
+                    #     self.save_checkpoint(scheduler, epoch=epoch, tag=str(cfg.max_steps))
+                    #     return
 
             epoch_loss = epoch_loss / steps_trained_in_current_epoch
             epoch_acc = epoch_correct_predictions / len(train_dataset)
@@ -480,7 +481,7 @@ class BiEncoderTrainer(object):
         with open(os.path.join(cfg.output_dir, "dev_result.txt"), "a") as f:
             f.write(f"{tag}: NLL loss: {total_loss}, accuracy: {correct_ratio}\n")
 
-    def predict(self, test_dataset: Dataset, write_file: bool = False, tag: str = None) -> List[float]:
+    def predict(self, test_dataset: Dataset, write_file: bool = True, tag: str = None) -> List[float]:
         cfg = self.args.train
 
         if not self.model or not self.tensorizer:
@@ -533,8 +534,7 @@ class BiEncoderTrainer(object):
 
             # scores,size = (batch_size, batch_size)
             softmax_scores = nn.functional.softmax(outputs, dim=1)
-            predictions = torch.argmax(softmax_scores, dim=1)
-            predictions = predictions.detach().cpu().numpy()
+            predictions = softmax_scores.detach().cpu().numpy()[:, 1]
             all_predictions.extend(predictions)
 
         if write_file:

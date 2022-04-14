@@ -1,0 +1,28 @@
+
+
+log_dir: "./logs"
+
+
+
+biencoder:
+  model_name: "bert-base-uncased"
+  max_seq_len: 512
+
+
+train:
+  seed: 2022
+  batch_size: 12
+  num_workers: 4
+  epochs: 10
+  learning_rate: 2e-5
+  weight_decay: 0.0
+
+
+
+data:
+  data_path: "../../data/neo_converted"
+  train_file: "nullptr_no_feature_train.pkl"
+  dev_file: "nullptr_no_feature_dev.pkl"
+  test_file: "nullptr_no_feature_test.pkl"
+  train_size: 80000
+  dev_size: 20000

@@ -8,6 +8,8 @@ import torch.nn.functional as F
 from .modeling import BertEncoder
 from .model_utils import CheckpointState
 from .data_utils import Tensorizer
+import pytorch_lightning as pl
+from omegaconf import DictConfig
 
 
 # BiEncoderPassage = collections.namedtuple("BiEncoderPassage", ["authors", "abstract"])
@@ -444,3 +446,14 @@ class BiEncoderLoss(object):
             loss.mul_(loss_scale)
 
         return loss, correct_predictions_count
+
+
+
+
+
+
+
+
+
+
+
