@@ -25,6 +25,7 @@ class NetworkDatasetBase(Dataset, ABC):
     y_tc: torch.Tensor
     edge_features: Union[None, np.ndarray]
     node_features: np.ndarray
+    length: int = 0
 
     def __init__(self, dataset_path: str):
         super().__init__()
@@ -98,7 +99,7 @@ class NetworkDatasetBase(Dataset, ABC):
         return self.u[item], self.v[item]
 
     def __len__(self):
-        return len(self.u)
+        return self.length
 
 
 class NetworkDatasetEdge(NetworkDatasetBase):
@@ -353,9 +354,9 @@ if __name__ == '__main__':
     # print(len(train_driver))
     # train_driver = NetworkDatasetPassageMatching('../../data/neo_converted/nullptr_train.pkl')
     tokenizer = AutoTokenizer.from_pretrained('bert-base-uncased')
-    train_driver = NetworkDatasetMLPBert('../../data/neo_converted/nullptr_no_feature_train.pkl', tokenizer)
+    train_driver = NetworkDatasetMLPBert('../../data/neo_converted/nullptr_no_feature_train.pkl', tokenizer, pos_edges_only=True)
     # tokenizer = AutoTokenizer.from_pretrained('bert-base-uncased')
-    train_driver = NetworkDatasetGraphSAGEBert('../../data/neo_converted/nullptr_no_feature_train.pkl', '../../data/abstract_features_v1/features.pkl')
+    # train_driver = NetworkDatasetGraphSAGEBert('../../data/neo_converted/nullptr_no_feature_train.pkl', '../../data/abstract_features_v1/features.pkl')
     from torch.utils.data import DataLoader
 
     train_loader = DataLoader(train_driver, batch_size=32)

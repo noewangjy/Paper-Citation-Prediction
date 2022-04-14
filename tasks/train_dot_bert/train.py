@@ -64,7 +64,7 @@ class MLPSolution(pl.LightningModule):
     def __init__(self,
                  hydra_cfg: DictConfig,
                  test_loader: DataLoader,
-                 global_logger: logging.Logger,
+                 global_logger: logging.Logger,  # FIXME: Passing a global_logger will cause dead lock when using DDP: all processes will try to write log simutaneously
                  skip_first_submission_generation: bool = True):
         super().__init__()
         self.hydra_config = hydra_cfg
@@ -130,6 +130,7 @@ class MLPSolution(pl.LightningModule):
         loss = compute_train_loss(pred, label, self.loss_type)
         return {'val_loss': loss}
 
+    @rank_zero_only
     def validation_epoch_end(self, outputs):
         self.global_logger.info("Validation Epoch End")
         avg_loss = torch.tensor([x['val_loss'].mean() for x in outputs]).mean()
@@ -224,7 +225,7 @@ def run(cfg):
                                                        save_weights_only=True,
                                                        every_n_train_steps=cfg.io.every_n_train_steps,
                                                        # every_n_epochs=cfg.io.every_n_epochs,
-                                                       save_on_train_epoch_end=True)
+                                                       save_on_train_epoch_end=True, )
     trainer = pl.Trainer(gpus=cfg.machine.gpus if not DEBUG else [cfg.machine.gpus[0]],
                          max_epochs=cfg.train.max_epochs,
                          callbacks=[checkpoint_callback,
@@ -233,7 +234,8 @@ def run(cfg):
                          val_check_interval=None if DEBUG else cfg.io.val_check_interval,
                          # progress_bar_refresh_rate=10,
                          default_root_dir=cfg.io.checkpoint_dir,
-                         logger=logger)
+                         logger=logger,
+                         num_sanity_val_steps=0 if cfg.io.disable_sanity_check else 2)
     global_logger = logging.getLogger(__name__)
     global_logger.info("Start training")
     solution = MLPSolution(cfg, test_loader, global_logger)
