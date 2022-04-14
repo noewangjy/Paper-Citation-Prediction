@@ -203,7 +203,6 @@ class NetworkDatasetEdge(NetworkDatasetBase):
         # features[:, 10] /= norm
         return np.array(features)
 
-
     def _get_salton_cosine_similarity(self, u: int, v: int):
         common_neighbors = self._get_common_neighbors(u, v)
         return len(common_neighbors)/np.sqrt(len(self.graph[u])*len(self.graph[v]))
