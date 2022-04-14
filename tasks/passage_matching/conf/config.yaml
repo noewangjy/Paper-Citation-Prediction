@@ -2,7 +2,13 @@
 defaults:
   - train: train_config
   - biencoder: biencoder_config
+  - machine: mercury
 
+
+data_path: "../../data/neo_converted"
+train_file: "nullptr_no_feature_train.pkl"
+dev_file: "nullptr_no_feature_dev.pkl"
+test_file: "nullptr_no_feature_test.pkl"
 
 
 do_train: True
@@ -10,11 +16,12 @@ do_eval: True
 do_predict: True
 eval_all_checkpoints: True
 predict_all_checkpoints: True
+biencoder_type: "Auto"
 
-data_path: "/data/wangjy/passage-maching/data/neo_converted"
-#data_path: "/data/wangjy/passage-maching/data/neo_converted"
-train_file: "nullptr_no_feature_train.pkl"
-dev_file: "nullptr_no_feature_dev.pkl"
-test_file: "nullptr_no_feature_test.pkl"
+train_dataset_size: 80000
+dev_dataset_size: 20000
+
+
+
 
 

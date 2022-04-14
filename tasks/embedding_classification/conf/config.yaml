@@ -1,0 +1,38 @@
+defaults:
+  - _self_
+  - machine: mercury
+
+
+data:
+  train_file: '../../data/neo_converted/nullptr_no_feature_whole.pkl'
+  dev_file: '../../data/neo_converted/nullptr_no_feature_dev.pkl'
+  test_file: '../../data/neo_converted/nullptr_no_feature_test.pkl'
+  train_size:
+  dev_size:
+
+train:
+  num_epochs: 1000
+
+  batch_size: 640
+  num_workers: 8
+  log_dir: "./logs"
+  num_checkpoints: 10
+  every_n_train_steps:
+  val_check_interval:
+  learning_rate: 1e-4
+  weight_decay: 0.0
+
+
+
+
+
+
+model:
+  vocab_size:
+  embedding_dim: 10
+  hidden_size1: 256
+  hidden_size2: 32
+  checkpoint_path: "./checkpoints"
+
+
+

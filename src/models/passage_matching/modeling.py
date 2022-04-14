@@ -10,7 +10,6 @@ from transformers import AdamW
 from transformers import BertTokenizer, AutoTokenizer
 
 from .data_utils import Tensorizer
-from .biencoder import BiEncoder
 
 logger = logging.getLogger(__name__)
 
@@ -52,8 +51,9 @@ class BertEncoder(nn.Module):
         )
         sequence_output = output.last_hidden_state
         hidden_states = output.hidden_states
+        pooled_output = output.pooler_output
         # sequence_output.size() = (batch_size, max_seq_len, hidden_size)
-        pooled_output = sequence_output[:, representation_token_pos, :]
+        # pooled_output = pooled_output[:, representation_token_pos, :]
 
         if self.linear:
             pooled_output = self.linear(pooled_output)
@@ -281,107 +281,5 @@ def get_hf_model_param_grouping(
             "weight_decay": 0.0,
         },
     ]
-
-
-def get_optimizer(
-        model: nn.Module,
-        learning_rate: float = 1e-5,
-        adam_eps: float = 1e-8,
-        weight_decay: float = 0.0,
-) -> torch.optim.Optimizer:
-    optimizer_grouped_parameters = get_hf_model_param_grouping(model, weight_decay)
-    return get_optimizer_grouped(optimizer_grouped_parameters, learning_rate, adam_eps)
-
-
-def get_bert_tokenizer(pretrained_cfg_name: str, do_lower_case: bool = True):
-    return BertTokenizer.from_pretrained(pretrained_cfg_name, do_lower_case=do_lower_case)
-
-
-def get_bert_tensorizer(cfg):
-    sequence_length = cfg.encoder.sequence_length
-    pretrained_model_cfg = cfg.encoder.pretrained_model_cfg
-    tokenizer = get_bert_tokenizer(pretrained_model_cfg, do_lower_case=cfg.do_lower_case)
-    if cfg.special_tokens:
-        _add_special_tokens(tokenizer, cfg.special_tokens)
-
-    return BertTensorizer(tokenizer, sequence_length)
-
-
-def get_bert_tensorizer_p(
-        pretrained_model_cfg: str, sequence_length: int, do_lower_case: bool = True, special_tokens: List[str] = []
-):
-    tokenizer = get_bert_tokenizer(pretrained_model_cfg, do_lower_case=do_lower_case)
-    if special_tokens:
-        _add_special_tokens(tokenizer, special_tokens)
-    return BertTensorizer(tokenizer, sequence_length)
-
-
-def _add_special_tokens(tokenizer, special_tokens):
-    logger.info("Adding special tokens %s", special_tokens)
-    logger.info("Tokenizer: %s", type(tokenizer))
-    special_tokens_num = len(special_tokens)
-
-    assert special_tokens_num < 500
-    unused_ids = [tokenizer.vocab["[unused{}]".format(i)] for i in range(special_tokens_num)]
-    logger.info("Utilizing the following unused token ids %s", unused_ids)
-
-    for idx, id in enumerate(unused_ids):
-        old_token = "[unused{}]".format(idx)
-        del tokenizer.vocab[old_token]
-        new_token = special_tokens[idx]
-        tokenizer.vocab[new_token] = id
-        tokenizer.ids_to_tokens[id] = new_token
-        logging.debug("new token %s id=%s", new_token, id)
-
-    tokenizer.additional_special_tokens = list(special_tokens)
-    logger.info("additional_special_tokens %s", tokenizer.additional_special_tokens)
-    logger.info("all_special_tokens_extended: %s", tokenizer.all_special_tokens_extended)
-    logger.info("additional_special_tokens_ids: %s", tokenizer.additional_special_tokens_ids)
-    logger.info("all_special_tokens %s", tokenizer.all_special_tokens)
-
-
-def get_bert_biencoder_components(config,
-                                  inference_only: bool = False,
-                                  **kwargs
-                                  ):
-    dropout = config.encoder.dropout if hasattr(config.encoder, "dropout") else 0.0
-    question_encoder = BertEncoder.init_encoder(
-        config.encoder.pretrained_model_cfg,
-        projection_dim=config.encoder.projection_dim,
-        dropout=dropout,
-        pretrained=config.encoder.pretrained,
-        **kwargs
-    )
-    ctx_encoder = BertEncoder.init_encoder(
-        config.encoder.pretrained_model_cfg,
-        projection_dim=config.encoder.projection_dim,
-        dropout=dropout,
-        pretrained=config.encoder.pretrained,
-        **kwargs
-    )
-
-    fix_ctx_encoder = config.encoder.fix_ctx_encoder if hasattr(config.encoder, "fix_ctx_encoder") else False
-    biencoder = BiEncoder(question_encoder, ctx_encoder, fix_ctx_encoder=fix_ctx_encoder)
-
-    optimizer = (
-        get_optimizer(
-            biencoder,
-            learning_rate=config.train.learning_rate,
-            adam_eps=config.train.adam_eps,
-            weight_decay=config.train.weight_decay,
-        )
-        if not inference_only
-        else None
-    )
-
-    tensorizer = get_bert_tensorizer(config)
-    return tensorizer, biencoder, optimizer
-
-
-def init_comp(initializers_dict, type, args, **kwargs):
-    if type in initializers_dict:
-        return initializers_dict[type](args, **kwargs)
-    else:
-        raise RuntimeError("unsupported model type: {}".format(type))
 
 
