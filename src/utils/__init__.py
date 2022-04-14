@@ -6,5 +6,6 @@ from .driver import (
     NetworkDatasetNode,
     NetworkDatasetPassageMatching,
     NetworkDatasetPassageMatchingPL,
-    NetworkDatasetGraphSAGEBert
+    NetworkDatasetGraphSAGEBert,
+    NetworkDatasetEmbeddingClassification
 )
