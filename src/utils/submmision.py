@@ -21,7 +21,7 @@ def generate_submission(output_dir: str, pred: Union[np.ndarray, torch.Tensor], 
 
     results = zip(range(len(pred)), pred)
     with tqdm.tqdm(range(len(pred))) as pbar:
-        with open(os.path.join(output_dir, tag + '_submission_.csv'), 'w') as f:
+        with open(os.path.join(output_dir, f'{"_".join([tag, "submission"])}.csv' if len(tag) > 0 else 'submission.csv'), 'w') as f:
             f.write('id,predicted\n')
             for idx, row in enumerate(results):
                 f.write(f"{row[0]},{row[1]}\n")
