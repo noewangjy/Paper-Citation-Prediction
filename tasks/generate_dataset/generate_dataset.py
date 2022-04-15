@@ -86,7 +86,7 @@ def generate_test_dataset(cfg: DictConfig) -> Dict[str, np.ndarray]:
 
 def save_datasets(cfg: DictConfig, datasets: Dict[str, Dict[str, Any]]):
     # Saving
-    dataset_type_name = "_".join(cfg.target_features.keys())
+    dataset_type_name = ", ".join(cfg.target_features.keys())
     print(dataset_type_name)
     print(f"Saving to {cfg.output_path}")
     for name in datasets.keys():

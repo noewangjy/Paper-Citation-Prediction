@@ -1,5 +1,6 @@
 import os
 import pickle
+import shutil
 
 
 def check_md5(path, display: bool = True):
@@ -40,5 +41,11 @@ if __name__ == '__main__':
         pickle.dump(res, f)
 
     print(check_md5('./uv_list.pkl'))
+
     with open('./uv_list.chksum', 'w') as f:
         f.write(check_md5('./uv_list.pkl'))
+
+    shutil.copy('./uv_list.chksum', '../../data/converted')
+    shutil.copy('./uv_list.pkl', '../../data/converted')
+    shutil.copy('./uv_list.chksum', '../../data/neo_converted')
+    shutil.copy('./uv_list.pkl', '../../data/neo_converted')

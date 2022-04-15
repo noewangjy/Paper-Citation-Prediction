@@ -21,7 +21,9 @@ def generate_array(cora_hidden_state, u_array, v_array):
 
 
 if __name__ == '__main__':
-    cora_hidden_state_path = './outputs/2022-04-14/00-55-02/epoch=350.pkl'
+    # cora_hidden_state_path = './outputs/2022-04-14/00-55-02/epoch=350.pkl'
+    import sys
+    cora_hidden_state_path = input("Input path: ") if len(sys.argv) < 2 else sys.argv[1]
     cora_hidden_state = pickle.load(open(cora_hidden_state_path, 'rb')).detach().cpu().numpy()
     uv_list_path = '../../data/neo_converted/uv_list.pkl'
     uv_dataset = pickle.load(open(uv_list_path, 'rb'))

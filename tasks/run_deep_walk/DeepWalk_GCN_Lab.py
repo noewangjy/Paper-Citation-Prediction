@@ -277,7 +277,7 @@ def sparse_to_torch_sparse(M):
 #     \hat{\mathbf{Y}} = \text{softmax}(\mathbf{Z}^1 \; \mathbf{W}^2),
 # \end{equation*}
 # where $\mathbf{W}^2$ is a third matrix of trainable weights.
-# Note that for clarity of presentation we have omitted biases.
+# Note that for clarity of report we have omitted biases.
 # 
 # We next discuss some practical implementation details.
 # Let $\mathbf{H} = f(\hat{\mathbf{A}} \; \mathbf{Z} \; \mathbf{W}^0 )$ be a message passing layer.

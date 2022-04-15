@@ -4,6 +4,7 @@
 *.log
 *.pyc
 *.hydra
+*.chksum
 
 writting/*.pdf
 writting/*.log
