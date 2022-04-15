@@ -1,0 +1,25 @@
+io:
+  log_dir: './logs'
+  checkpoint_dir: './checkpoints'
+  num_checkpoints: 5
+  save_interval: 50
+
+model:
+  predictor: 'dot'
+  aggregator: 'mean'
+  hidden_dims: 512
+  output_dims: 32
+
+dataset:
+  train_dataset_path: '../../data/converted/nullptr_graph_conv_train.pkl'
+  dev_dataset_path: '../../data/converted/nullptr_graph_conv_dev.pkl'
+  test_dataset_path: '../../data/converted/nullptr_graph_conv_test.pkl'
+
+train:
+  lr: 0.001
+  max_epochs: 800
+  val_check_interval: 200
+
+defaults:
+  - _self_
+  - machine: goodnews

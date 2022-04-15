@@ -9,3 +9,5 @@ from .driver import (
     NetworkDatasetGraphSAGEBert,
     NetworkDatasetEmbeddingClassification
 )
+from .io import dump_features, split_graph
+from .fitter import fit_lr_classifier, infer_lr_classifier, calculate_score, calculate_score_raw

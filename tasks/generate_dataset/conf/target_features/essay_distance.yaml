@@ -1,0 +1,4 @@
+essay_distance:
+  max_distance: 3
+  num_procs: 24
+# This feature is inbalanced

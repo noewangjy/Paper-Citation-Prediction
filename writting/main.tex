@@ -98,6 +98,19 @@
 \lstset{defaultdialect=[x86masm]Assembler}
 % add backlinks to footnote references, cf. https://tex.stackexchange.com/questions/302266/make-footnote-clickable-both-ways
 \usepackage{footnotebackref}
+\usepackage{graphicx}
+\makeatletter
+\def\maxwidth{\ifdim\Gin@nat@width>\linewidth\linewidth\else\Gin@nat@width\fi}
+\def\maxheight{\ifdim\Gin@nat@height>\textheight\textheight\else\Gin@nat@height\fi}
+\makeatother
+% Scale images if necessary, so that they will not overflow the page
+% margins by default, and it is still possible to overwrite the defaults
+% using explicit options in \includegraphics[width, height, ...]{}
+\setkeys{Gin}{width=\maxwidth,height=\maxheight,keepaspectratio}
+% Set default figure placement to htbp
+\makeatletter
+\def\fps@figure{htbp}
+\makeatother
 \setlength{\emergencystretch}{3em} % prevent overfull lines
 \providecommand{\tightlist}{%
   \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
@@ -367,5 +380,49 @@
 
 \hypertarget{report}{%
 \section{Report}\label{report}}
+
+\includegraphics{./background.png}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\hypertarget{environment}{%
+\subsection{Environment}\label{environment}}
+
+\hypertarget{setup-dgl}{%
+\subsubsection{Setup DGL}\label{setup-dgl}}
+
+You can install \passthrough{\lstinline!dgl!} from conda with CUDA
+support
+
+\begin{lstlisting}
+conda install -c dglteam dgl-cuda11.3
+\end{lstlisting}
+
+For CPU only version, run:
+
+\begin{lstlisting}
+conda install -c dglteam dgl
+\end{lstlisting}
+
+On macOS, you can install dgl From source
+
+\begin{lstlisting}
+mkdir build
+cd build
+#cmake -DUSE_CUDA=ON ..
+cmake -DUSE_OPENMP=off -DCMAKE_C_FLAGS='-DXBYAK_DONT_USE_MAP_JIT' -DCMAKE_CXX_FLAGS='-DXBYAK_DONT_USE_MAP_JIT' -DUSE_AVX=OFF -DUSE_LIBXSMM=OFF ..
+make -j4
+\end{lstlisting}
+
+Then, install python bindings
+
+\begin{lstlisting}
+cd ../python
+python setup.py install
+\end{lstlisting}
+
+\[
+\sum_0^1x = 8
+\]
 
 \end{document}

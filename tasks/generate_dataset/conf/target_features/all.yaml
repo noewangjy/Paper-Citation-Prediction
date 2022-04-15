@@ -15,3 +15,7 @@ cora_like:
   min_freq: 500
   num_procs: 24
 author_index:
+author_graph:
+  alpha: 1
+  beta: 0.5
+essay_distance:

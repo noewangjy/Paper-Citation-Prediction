@@ -1,0 +1,13 @@
+edges:
+pos_uv:
+neg_uv:
+edge_generic:
+authors:
+authors_index:
+authors_graph:
+  alpha: 1
+  beta: 0.5
+cora_like:
+  max_freq: 5000
+  min_freq: 50
+  num_procs: 24
