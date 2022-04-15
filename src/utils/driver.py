@@ -11,6 +11,7 @@ import dgl
 import dgl.function as fn
 from transformers import PreTrainedTokenizer, AutoTokenizer
 import torch.nn.functional as torch_f
+from torch.utils.data import Dataset
 
 
 def compute_pagerank(graph: dgl.DGLGraph,
@@ -169,44 +170,46 @@ class NetworkDatasetEdge(NetworkDatasetBase):
         # uv[:, 1] = self.v
         # jaccard_generator = nx.jaccard_coefficient(self.graph, uv)
         # adamic_adar_generator = nx.adamic_adar_index(self.graph, uv)
+        result = np.empty(shape=(self.length, 15))
 
-        for i in tqdm(range(self.length)):
-            u = self.u[i]
-            v = self.v[i]
-            pr_u = float(self.page_rank[u])
-            pr_v = float(self.page_rank[v])
+        with tqdm(range(self.length)) as pbar:
+            for i in range(self.length):
+                u = self.u[i]
+                v = self.v[i]
+                pr_u = float(self.page_rank[u])
+                pr_v = float(self.page_rank[v])
 
-            features.append([
-                self.graph.degree[u] + self.graph.degree[v],  # -0.089
-                abs(self.graph.degree[u] - self.graph.degree[v]),  # -0.034
-                len(self.abstracts[u]) + len(self.abstracts[v]),  # -0.045
-                abs(len(self.abstracts[u]) - len(self.abstracts[v])),  # -0.009
-                len(set(self.abstracts[u].split()).intersection(set(self.abstracts[v].split()))),  # -0.073
-                # len(",".join(self.authors[u])) + len(",".join(self.authors[v])), # useless
-                # abs(len(self.authors[u]) - len(self.authors[v])),  # useless
-                # len(self.abstracts[u].split()) + len(self.abstracts[v].split()),  # useless
-                self.shortest_path[i],
-                len(self._get_common_neighbors(u, v)),  # Common Neighbor
-                self._get_jaccard_coefficient(u, v),    # Jaccard Coefficient, better than common neighbor
-                self._get_adamic_adar(u, v),   # Adamic-adar coefficient
-                self._get_resource_allocation(u, v),
-                self._get_preferential_attachment(u, v),
-                self._get_salton_cosine_similarity(u, v),
+                result[i] = [
+                    self.graph.degree[u] + self.graph.degree[v],  # -0.089
+                    abs(self.graph.degree[u] - self.graph.degree[v]),  # -0.034
+                    len(self.abstracts[u]) + len(self.abstracts[v]),  # -0.045
+                    abs(len(self.abstracts[u]) - len(self.abstracts[v])),  # -0.009
+                    len(set(self.abstracts[u].split()).intersection(set(self.abstracts[v].split()))),  # -0.073
+                    # len(",".join(self.authors[u])) + len(",".join(self.authors[v])), # useless
+                    # abs(len(self.authors[u]) - len(self.authors[v])),  # useless
+                    # len(self.abstracts[u].split()) + len(self.abstracts[v].split()),  # useless
+                    self.shortest_path[i],
+                    len(self._get_common_neighbors(u, v)),  # Common Neighbor
+                    self._get_jaccard_coefficient(u, v),  # Jaccard Coefficient, better than common neighbor
+                    self._get_adamic_adar(u, v),  # Adamic-adar coefficient
+                    self._get_resource_allocation(u, v),
+                    self._get_preferential_attachment(u, v),
+                    self._get_salton_cosine_similarity(u, v),
 
-                pr_u + pr_v,
-                abs(pr_u - pr_v),
-                len(set(self.authors[u]).intersection(set(self.authors[v])))
+                    pr_u + pr_v,
+                    abs(pr_u - pr_v),
+                    len(set(self.authors[u]).intersection(set(self.authors[v])))
 
-            ])
+                ]
+                if i % 1e4 == 0: pbar.update(1e4)
 
         # norm = np.max(features, axis=10)
         # features[:, 10] /= norm
-        return np.array(features)
-
+        return result
 
     def _get_salton_cosine_similarity(self, u: int, v: int):
         common_neighbors = self._get_common_neighbors(u, v)
-        return len(common_neighbors)/np.sqrt(len(self.graph[u])*len(self.graph[v]))
+        return len(common_neighbors) / np.sqrt(len(self.graph[u]) * len(self.graph[v]))
 
     def _get_resource_allocation(self, u: int, v: int):
         scores = 0
@@ -216,7 +219,7 @@ class NetworkDatasetEdge(NetworkDatasetBase):
         return scores
 
     def _get_preferential_attachment(self, u: int, v: int):
-        return len(self.graph[u])*len(self.graph[v])
+        return len(self.graph[u]) * len(self.graph[v])
 
     def _get_nodes_sp(self, u: int, v: int) -> int:
         if nx.has_path(self.graph, u, v):
@@ -265,7 +268,11 @@ class NetworkDatasetEdge(NetworkDatasetBase):
         print("Shortest path successfully dumped")
 
     def load_shortest_path(self):
-        with open(self.dataset_path.split("/")[-1].split(".")[0] + "_sp.pkl", "rb") as f:
+        shortest_path_pickle_path = self.dataset_path.split("/")[-1].split(".")[0] + "_sp.pkl"
+        if not os.path.exists(shortest_path_pickle_path):
+            self.dump_shortest_path()
+
+        with open(shortest_path_pickle_path, "rb") as f:
             self.shortest_path = pickle.load(f)
 
 

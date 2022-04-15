@@ -4,6 +4,7 @@ import sklearn.metrics as metrics
 from sklearn.svm import SVC, LinearSVC, LinearSVR, SVR, NuSVR, NuSVC
 import csv
 import numpy as np
+import pickle
 
 def sigmoid(x: np.ndarray)-> np.ndarray:
     return 1/(1+np.exp(-x))
@@ -34,7 +35,7 @@ def calculate_score_svm(clf, X_dev, y_dev):
 
 
 if __name__ == '__main__':
-    train_set = NetworkDatasetEdge('../../data/neo_converted/nullptr_no_feature_whole.pkl')
+    train_set = NetworkDatasetEdge('../../data/neo_converted/nullptr_no_feature_train.pkl')
     dev_set = NetworkDatasetEdge('../../data/neo_converted/nullptr_no_feature_dev.pkl')
     test_set = NetworkDatasetEdge('../../data/neo_converted/nullptr_no_feature_test.pkl')
 
@@ -78,3 +79,18 @@ if __name__ == '__main__':
     # y_pred = clf.predict(X_test)
     y_pred = y_pred[:, 1]
     generate_submission("./", y_pred)
+
+    features = {
+        '__text__': 'baseline-enhanced',
+        'X_train': X_train,
+        'Y_train': y_train,
+        'X_dev': X_dev,
+        'Y_dev': y_dev,
+        'X_test': X_test,
+        'train_u': train_set.u,
+        'train_v': train_set.v,
+        'dev_u': dev_set.u,
+        'dev_v': dev_set.v,
+    }
+    with open('baseline-enhanced.pkl', 'wb') as f:
+        pickle.dump(features, f)
