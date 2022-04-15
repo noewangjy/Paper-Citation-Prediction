@@ -43,7 +43,22 @@ features:
   authors_index:
     deps: [ ]
     products:
+      - authors_index_mapping # {author_name: integer_index}
+      - authors_index_names   # [num_authors, str], str = author_name
+      - authors_index_freq    # [num_authors, 1]
+      - authors_index_encoded # [num_essays, object], object = [authors_index_mapping[author_name]]
+  authors_graph:
+    deps:
       - authors_index
+      - edges
+    products:
+      - authors_graph_edges  # [num_authors_links, 2]
+      - authors_graph_weights # [num_authors_links, 1]
+  essay_distance:
+    deps:
+      - pos_uv
+    products:
+      - essay_distance
 record_names:
   abstracts: abstracts.txt
   authors: authors.txt

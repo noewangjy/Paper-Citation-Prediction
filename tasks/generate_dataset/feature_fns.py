@@ -1,5 +1,6 @@
 import logging
 
+import dgl
 import networkx as nx
 from typing import Tuple, Dict, List, Any, Union, Callable
 import numpy as np
@@ -10,7 +11,9 @@ import json
 import math
 from concurrent.futures import ProcessPoolExecutor
 import multiprocessing as mp
+import numba
 import nltk
+import itertools
 
 
 def feature_fn_graph(cfg, context, datasets, logger: logging.Logger):
@@ -21,7 +24,7 @@ def feature_fn_graph(cfg, context, datasets, logger: logging.Logger):
 
 def feature_fn_edges(cfg, context, datasets, logger: logging.Logger):
     for dataset_name, dataset in datasets.items():
-        dataset['origin_edges'] = context['graph'].edges()
+        dataset['origin_edges'] = np.array(context['graph'].edges())
     return datasets
 
 
@@ -103,6 +106,7 @@ def feature_fn_neg_uv(cfg, context, datasets, logger: logging.Logger):
     # neg_u = np.concatenate([item.result()[0] for item in results])
     # neg_v = np.concatenate([item.result()[1] for item in results])
     # @warning Should not use multiprocessing until pseudo random problem is solved
+    np.random.seed(int(cfg.random_seed))
 
     neg_u, neg_v = _select_neg_edges(0, context['graph'], context['size']['whole'])
 
@@ -168,6 +172,7 @@ def feature_fn_node_abstract_bert(cfg, context, datasets, logger: logging.Logger
 
 def feature_fn_edge_generic(cfg, context, datasets, logger: logging.Logger):
     graph = context['graph']
+
     for dataset_name, dataset in datasets.items():
         num_edges = len(dataset['u'])
         edge_features = np.zeros(shape=(num_edges, 5), dtype=np.float32)
@@ -176,8 +181,8 @@ def feature_fn_edge_generic(cfg, context, datasets, logger: logging.Logger):
                 u, v, y = dataset['u'][idx], dataset['v'][idx], dataset['y'][idx]
                 u_degree = int(graph.degree[u])
                 v_degree = int(graph.degree[v])
-                u_abstract = dataset['abstracts'][u]
-                v_abstract = dataset['abstracts'][v]
+                u_abstract = context['abstracts'][u]
+                v_abstract = context['abstracts'][v]
 
                 edge_features[idx] = v_degree + u_degree, \
                                      abs(v_degree - u_degree), \
@@ -287,7 +292,7 @@ def feature_fn_cora_like(cfg, context, datasets, logger: logging.Logger):
         for idx in range(num_abstracts):
             for word in regex_tokenizer(abstracts[idx]):
                 if word in vocab.keys():
-                    features[idx][vocab[word]] = 1
+                    features[idx][vocab[word]] += 1
             if features[idx].sum() <= 0:
                 features[idx][-1] = 1  # Last column is 1 -> No keyword
             if idx % 1e2 == 0:
@@ -302,13 +307,162 @@ def feature_fn_cora_like(cfg, context, datasets, logger: logging.Logger):
 
 def feature_fn_authors_index(cfg, context, datasets, logger):
     logger.info('feature_fn_authors_index')
-    acc = set()
+    acc = {}
     for authors in context['authors']:
-        acc.update(set(authors))
+        for author in authors:
+            if author in acc.keys():
+                acc[author] += 1
+            else:
+                acc[author] = 1
 
-    authors_list: List[str] = list(acc)
-    authors_list.sort()
-    values = np.arange(len(authors_list)) / len(authors_list) + 1 / len(authors_list)
+    authors_index_names: List[str] = list(acc.keys())
+    authors_index_names.sort()
+
+    authors_index_freq = [acc[author] for author in authors_index_names]
+    num_authors = len(authors_index_names)
+    authors_index_mapping = {k: v for k, v in zip(authors_index_names, np.arange(0, num_authors))}
     for dataset_name, dataset in datasets.items():
-        dataset['authors_index'] = values
+        dataset['authors_index_names'] = np.array(authors_index_names, dtype=object)
+        dataset['authors_index_mapping'] = authors_index_mapping
+        dataset['authors_index_freq'] = np.array(authors_index_freq, dtype=int)
+    return datasets
+
+
+def feature_fn_authors_graph(cfg, context, datasets, logger):
+    logger.info('feature_fn_authors_graph')
+    if 'authors_index_names' not in datasets['whole'].keys():
+        datasets = feature_fn_authors_index(cfg, context, datasets, logger)
+    if 'origin_edges' not in datasets['whole'].keys():
+        datasets = feature_fn_edges(cfg, context, datasets, logger)
+
+    num_authors: int = len(datasets['whole']['authors_index_names'])
+    authors_list: List[str] = datasets['whole']['authors_index_names']
+
+    author_mapping: Dict[str, int] = {author: idx for author, idx in zip(authors_list, np.arange(0, num_authors))}
+    authors: List[List[str]] = context['authors']
+    weighted_edges: Dict[Tuple[int, int], int] = {}
+    with tqdm.tqdm(range(num_authors)) as pbar:
+        for idx, author_group in enumerate(authors):
+            for author_idx_tuple in map(lambda x: (author_mapping[x[0]], author_mapping[x[1]]), itertools.combinations(author_group, 2)):
+                if author_idx_tuple in weighted_edges.keys():
+                    weighted_edges[author_idx_tuple] += cfg.target_features.authors_graph.alpha
+                else:
+                    weighted_edges[author_idx_tuple] = cfg.target_features.authors_graph.alpha
+            if idx % 1e4 == 0: pbar.update(1e4)
+
+    num_edges = len(datasets['whole']['origin_edges'])
+    edges = datasets['whole']['origin_edges']
+    with tqdm.tqdm(range(num_edges)) as pbar:
+        for edge_idx in range(num_edges):
+            u, v = edges[edge_idx]
+            for author_idx_tuple in map(lambda x: (author_mapping[x[0]], author_mapping[x[1]]), [(i, j) for i in authors[u] for j in authors[v]]):
+                if author_idx_tuple in weighted_edges.keys():
+                    weighted_edges[author_idx_tuple] += cfg.target_features.authors_graph.beta
+                else:
+                    weighted_edges[author_idx_tuple] = cfg.target_features.authors_graph.beta
+            if edge_idx % 1e4 == 0: pbar.update(1e4)
+
+    unweighted_edges, edge_weights = np.array(list(map(lambda x: list(x), weighted_edges.keys()))), np.array(list(weighted_edges.values()))
+
+    # Graph construction example
+    # G = nx.Graph()
+    # G.add_weighted_edges_from(np.concatenate([unweighted_edges, np.expand_dims(edge_weights, axis=1)], axis=1))
+    # G = dgl.from_networkx(nx.Graph())
+    # G.add_edges(torch.tensor(unweighted_edges[:,0]),torch.tensor(unweighted_edges[:,1]), {'w': torch.tensor(edge_weights)})
+    for dataset_name, dataset in datasets.items():
+        dataset['authors_graph_edges'] = unweighted_edges
+        dataset['authors_graph_weights'] = edge_weights
+    return datasets
+
+
+def _compute_distance(graph: dgl.DGLGraph, u_authors_enc: List[int], v_authors_enc: List[int], max_distance=0x10):
+    """
+    Distance = np(-x) where x = number of intersections between u_author_neighbors and v_author_neighbors
+    :param graph:
+    :param u_authors_enc:
+    :param v_authors_enc:
+    :param max_distance:
+    :return:
+    """
+    u_bfs_nodes, v_bfs_nodes = dgl.bfs_nodes_generator(graph, u_authors_enc), dgl.bfs_nodes_generator(graph, v_authors_enc)
+    distance = min(len(u_bfs_nodes), len(v_bfs_nodes), max_distance)
+    num_intersections = len(np.intersect1d(torch.cat(u_bfs_nodes[0: distance]).detach().cpu().numpy(),
+                                           torch.cat(v_bfs_nodes[0: distance]).detach().cpu().numpy()))
+    return np.exp(-num_intersections)
+
+
+def _compute_batch_distance(proc_id: int,
+                            graph: dgl.DGLGraph,
+                            authors: np.ndarray,
+                            authors_mapping: Dict[str, int],
+                            u_array: np.ndarray,
+                            v_array: np.ndarray,
+                            max_distance) -> np.ndarray:
+    num_edges = len(u_array)
+    distance_features = np.zeros_like(u_array, dtype=np.float)
+    with tqdm.tqdm(range(num_edges)) as pbar:
+        pbar.set_description(f"Idx: {proc_id}")
+        for idx, u, v in zip(range(num_edges), u_array, v_array):
+            u_authors_enc, v_authors_enc = [authors_mapping[item] for item in authors[u]], [authors_mapping[item] for item in authors[v]]
+            distance_features[idx] = _compute_distance(graph, u_authors_enc, v_authors_enc, max_distance)
+            if idx % 1e2 == 0: pbar.update(1e2)
+
+    return distance_features
+
+
+#
+# def _compute_distance_memory(graph: dgl.DGLGraph, u_array: torch.Tensor, v_array: torch.Tensor, max_distance: int):
+#     num_edges = len(u_array)
+#     distance_memory: torch.Tensor = torch.zeros_like(u_array)
+#     with tqdm.tqdm(range(num_edges)) as pbar:
+#         for idx, u, v in zip(range(num_edges), u_array, v_array):
+#             distance_memory[idx] = _compute_distance(graph, u, v, max_distance)
+#             if idx % 1000 == 0: pbar.update(1000)
+#
+#     return distance_memory.detach().cpu().numpy()
+
+
+def feature_fn_essay_distance(cfg, context, datasets, logger):
+    logger.info('feature_fn_essay_distance')
+    if 'u' not in datasets['whole'].keys():
+        logger.warning("Dataset has not initialized u/v, enable uv by default")
+        datasets = feature_fn_pos_uv(cfg, context, datasets, logger)
+        datasets = feature_fn_neg_uv(cfg, context, datasets, logger)
+    if 'authors_graph_edges' not in datasets['whole'].keys():
+        logger.warning("Dataset has not initialized authors_graph, enable authors_grap by default")
+        datasets = feature_fn_authors_graph(cfg, context, datasets, logger)
+
+    logger.info(f'generating dgl graph')
+    unweighted_edges: np.ndarray = datasets['whole']['authors_graph_edges']
+    authors: np.ndarray = context['authors']
+    authors_mapping: Dict[str, int] = datasets['whole']['authors_index_mapping']
+    graph: dgl.DGLGraph = dgl.graph((torch.tensor(unweighted_edges[:, 0], dtype=torch.int32), torch.tensor(unweighted_edges[:, 1], dtype=torch.int32)), idtype=torch.int32)
+
+    # logger.info('computing node distances')
+    # distance_memory: np.ndarray = _compute_distance_memory(graph,
+    #                                                        torch.tensor(datasets['whole']['pos_u'], dtype=torch.int32),
+    #                                                        torch.tensor(datasets['whole']['pos_v'], dtype=torch.int32),
+    #                                                        cfg.target_features.essay_distance.max_distance)
+    # res = _compute_batch_distance(0, graph, authors, authors_mapping, datasets['whole']['u'], datasets['whole']['v'], cfg.target_features.essay_distance.max_distance)
+    num_edges = len(datasets['whole']['u'])
+    num_procs: int = cfg.target_features.essay_distance.num_procs
+    batch_size: int = math.ceil(num_edges / num_procs)
+    with ProcessPoolExecutor(max_workers=num_procs) as pool:
+        results = []
+        for idx in range(num_procs):
+            results.append(pool.submit(_compute_batch_distance,
+                                       idx,
+                                       graph,
+                                       authors,
+                                       authors_mapping,
+                                       datasets['whole']['u'][idx * batch_size: (idx + 1) * batch_size],
+                                       datasets['whole']['v'][idx * batch_size: (idx + 1) * batch_size],
+                                       cfg.target_features.essay_distance.max_distance))
+        # pool.shutdown()
+    distance_features = np.concatenate(list(map(lambda x: x.result(), results)))
+
+    logger.info(f'finalizing distance result')
+    # distance_memory = np.array([distance_map[(u, v)] if (u, v) in distance_map.keys() else cfg.target_features.essay_distance.max_distance - 1 for u, v in zip(datasets['whole']['pos_u'], datasets['whole']['pos_v'])])
+    for dataset_name, dataset in datasets.items():
+        dataset['essay_distance'] = distance_features
     return datasets
