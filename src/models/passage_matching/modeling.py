@@ -1,12 +1,11 @@
 import logging
-import torch
-import transformers
-from torch import Tensor as T
-import torch.nn as nn
 from typing import Tuple, List
 
-from transformers import BertConfig, BertModel, AutoConfig, AutoModel
+import torch
+import torch.nn as nn
+from torch import Tensor as T
 from transformers import AdamW
+from transformers import BertConfig, BertModel, AutoConfig, AutoModel
 from transformers import BertTokenizer, AutoTokenizer
 
 from .data_utils import Tensorizer
@@ -281,5 +280,3 @@ def get_hf_model_param_grouping(
             "weight_decay": 0.0,
         },
     ]
-
-

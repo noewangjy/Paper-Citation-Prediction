@@ -1,22 +1,10 @@
-import networkx as nx
+import pickle
+
+import numpy as np
+import torch
 
 from src.utils.fitter import fit_lr_classifier, infer_lr_classifier, calculate_score
-import pickle
-import numpy as np
-from src.utils.submmision import generate_submission
-from src.utils.io import dump_features
-import os
-import itertools
-import dgl
-import torch
-from typing import Tuple
-from src.models import GraphSAGEBundled
-import torch.nn.functional as torch_f
-import tqdm
-import torch.nn as nn
-from typing import List
-import math
-import dgl.function as fn
+from src.utils.submission import generate_submission
 
 
 class Voter:
@@ -50,8 +38,6 @@ if __name__ == '__main__':
     torch.random.manual_seed(0)
     np.random.seed(0)
     device = torch.device('cuda:2') if torch.cuda.is_available() else torch.device('cpu')
-
-
 
     # GraphSAGE on cora_like passages, rare word
     cora_hidden_state = pickle.load(open(cora_hidden_state_path, 'rb'))

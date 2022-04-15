@@ -1,8 +1,7 @@
-import torch.nn as nn
-import torch
-
-from dgl.nn import SAGEConv
 import dgl.function as fn
+import torch
+import torch.nn as nn
+from dgl.nn import SAGEConv
 from transformers import AutoModel
 
 

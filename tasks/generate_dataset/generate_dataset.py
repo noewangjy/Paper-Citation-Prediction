@@ -1,18 +1,17 @@
-import json
+import os
+import logging
 import os
 import pickle
-import sys
-from typing import Dict, List, Tuple, Any, Union
+from typing import Dict, List, Any
 
+import hydra
 import networkx as nx
 import numpy as np
 import torch
-import tqdm
-import hydra
 from hydra.utils import to_absolute_path
 from omegaconf import DictConfig
+
 import feature_fns
-import logging
 
 
 def read_abstracts(abstracts_path: str) -> np.ndarray:

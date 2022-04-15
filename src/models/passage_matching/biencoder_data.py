@@ -1,8 +1,3 @@
-import collections
-from typing import Dict, List
-
-
-
 # # make sure the batch is on device cpu
 # def convert_data_to_sample(batch: Dict) -> List[BiEncoderSample]:
 #     query = batch['query']

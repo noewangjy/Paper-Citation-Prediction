@@ -1,8 +1,10 @@
-from src.utils.fitter import fit_lr_classifier, infer_lr_classifier, calculate_score
 import pickle
+
 import numpy as np
-from src.utils.submmision import generate_submission
+
+from src.utils.fitter import fit_lr_classifier, infer_lr_classifier, calculate_score
 from src.utils.io import dump_features
+from src.utils.submission import generate_submission
 
 if __name__ == '__main__':
     whole_dataset_path = '../../data/converted/nullptr_graph_conv_whole.pkl'

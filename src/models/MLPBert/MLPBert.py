@@ -31,5 +31,3 @@ class MLPBert(nn.Module):
         out = torch.relu(self.l1(self.bn1(out)))
         out = torch.relu(self.l2(self.bn2(out)))
         return out
-
-

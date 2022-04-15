@@ -1,13 +1,14 @@
-from src.utils import NetworkDatasetEdge, generate_submission
-from sklearn.linear_model import LogisticRegression, SGDClassifier
-import sklearn.metrics as metrics
-from sklearn.svm import SVC, LinearSVC, LinearSVR, SVR, NuSVR, NuSVC
-import csv
-import numpy as np
 import pickle
 
-def sigmoid(x: np.ndarray)-> np.ndarray:
-    return 1/(1+np.exp(-x))
+import numpy as np
+import sklearn.metrics as metrics
+from sklearn.linear_model import LogisticRegression
+
+from src.utils import NetworkDatasetEdge, generate_submission
+
+
+def sigmoid(x: np.ndarray) -> np.ndarray:
+    return 1 / (1 + np.exp(-x))
 
 
 def calculate_score(clf, X_dev, y_dev):
@@ -65,9 +66,6 @@ if __name__ == '__main__':
         n_jobs=12,
         verbose=1,
     )
-
-
-
 
     # Use
     clf.fit(X_train, y_train)

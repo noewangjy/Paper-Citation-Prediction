@@ -1,21 +1,21 @@
 import logging
 
+import hydra
+import numpy as np
 import pytorch_lightning as pl
 import torch.backends.cudnn
-
-from src.utils import NetworkDatasetEmbeddingClassification
-import hydra
-from torch.utils.data import Subset, DataLoader
-import numpy as np
-from src.models.embedding_classification.modeling import EmbeddingClassifier
 from hydra.utils import to_absolute_path
+from torch.utils.data import Subset, DataLoader
+
+from src.models.embedding_classification.modeling import EmbeddingClassifier
+from src.utils import NetworkDatasetEmbeddingClassification
 
 
 @hydra.main(config_path="conf", config_name="config")
 def main(args):
     train_dataset = NetworkDatasetEmbeddingClassification(to_absolute_path(args.data.train_file))
     if args.data.train_size:
-        train_dataset = Subset(train_dataset, np.arange(args.data.train_size)-int(args.data.train_size))
+        train_dataset = Subset(train_dataset, np.arange(args.data.train_size) - int(args.data.train_size))
     dev_dataset = NetworkDatasetEmbeddingClassification(to_absolute_path(args.data.dev_file))
     if args.data.dev_size:
         dev_dataset = Subset(dev_dataset, np.arange(args.data.dev_size) - int(args.data.dev_size))
@@ -86,6 +86,3 @@ def main(args):
 if __name__ == "__main__":
     torch.backends.cudnn.benchmark = True
     main()
-
-
-

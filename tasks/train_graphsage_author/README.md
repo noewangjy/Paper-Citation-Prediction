@@ -3,6 +3,7 @@
 ## Introduction:
 
 clf:
+
 - GraphSAGE on author network, feature = nn.Embedding(author) -> Nx32
 - GraphSAGE on essay network, feature = WordFrequencyVector -> Nx32
 

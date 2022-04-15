@@ -10,6 +10,7 @@ This task aims to generate a dataset from:
 ## Intro
 
 There is this `config.yaml` under `conf` directory:
+
 ```yaml
 features:
   pos_uv:
@@ -65,12 +66,12 @@ The names under `features` tag are available tabes. `feature.products` are names
 
 You can combine multiple features in the target_features section.
 
-
 ## Usage
 
 ### Generate
 
 To use the `no_feature` profile under `conf/target_features` directory:
+
 ```bash
 python generate_dataset target_features=no_feature prefix=nullptr_no_feature
 ```
@@ -87,8 +88,6 @@ import pickle
 with open('nullptr_no_feature_train.pkl', 'rb') as f:
     data = pickle.load(f)
 ```
-
-
 
 The following keys can be used to index the converted dataset
 

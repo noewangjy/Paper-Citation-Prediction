@@ -1,7 +1,5 @@
-from src.utils.driver import NetworkDatasetEdge
-from src.utils.submmision import generate_submission
-from sklearn.linear_model import LogisticRegression
 import sklearn.metrics as metrics
+from sklearn.linear_model import LogisticRegression
 
 
 def calculate_score(clf, X_dev, Y_dev):

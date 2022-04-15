@@ -1,26 +1,22 @@
 # %%
-import numpy as np
-import networkx as nx
-import scipy.sparse as sp
+import time
 from random import randint
 
-import time
-
+import matplotlib.pyplot as plt
+import networkx as nx
+import numpy as np
+import scipy.sparse as sp
+import seaborn as sns
 import torch
 import torch.nn as nn
-import torch.optim as optim
 import torch.nn.functional as F
-
+import torch.optim as optim
 from gensim.models import Word2Vec
-
-from sklearn.manifold import TSNE
 from sklearn.decomposition import PCA
+from sklearn.linear_model import LogisticRegression
+from sklearn.manifold import TSNE
 from sklearn.metrics import accuracy_score
 from sklearn.preprocessing import LabelEncoder
-from sklearn.linear_model import LogisticRegression
-
-import seaborn as sns
-import matplotlib.pyplot as plt
 
 # %% [markdown]
 # # Deep Learning for Graph Data Lab
@@ -45,8 +41,6 @@ import matplotlib.pyplot as plt
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
-
-
 def load_data(path="cora/", dataset="cora"):
     """Load citation network dataset"""
     print('Loading {} dataset...'.format(dataset))
@@ -55,7 +49,7 @@ def load_data(path="cora/", dataset="cora"):
     features = sp.csr_matrix(idx_features_labels[:, 1:-1], dtype=np.float32)
     features = features.todense()
     features /= features.sum(1).reshape(-1, 1)
-    
+
     class_labels = idx_features_labels[:, -1]
     le = LabelEncoder()
     class_labels = le.fit_transform(class_labels)
@@ -68,7 +62,6 @@ def load_data(path="cora/", dataset="cora"):
     edges = np.array(list(map(idx_map.get, edges_unordered.flatten())), dtype=np.int32).reshape(edges_unordered.shape)
     adj = sp.coo_matrix((np.ones(edges.shape[0]), (edges[:, 0], edges[:, 1])), shape=(class_labels.size, class_labels.size), dtype=np.float32)
 
-
     # build symmetric adjacency matrix
     adj = adj + adj.T.multiply(adj.T > adj) - adj.multiply(adj.T > adj)
     adj = adj.todense()
@@ -80,30 +73,26 @@ def load_data(path="cora/", dataset="cora"):
 
 features, cora_adjacency, class_labels = load_data()
 
-G=nx.from_numpy_array(cora_adjacency)
+G = nx.from_numpy_array(cora_adjacency)
 
 n = G.number_of_nodes()
 m = G.number_of_edges()
 
-
-
 # Read data
-n_class = np.unique(class_labels).size # Number of classes
-
+n_class = np.unique(class_labels).size  # Number of classes
 
 # Yields indices to split data into training, validation and test sets
 np.random.seed(2604)
 idx = np.random.permutation(n)
-idx_train = idx[:int(0.6*n)]
-idx_val = idx[int(0.6*n):int(0.8*n)]
-idx_test = idx[int(0.8*n):]
+idx_train = idx[:int(0.6 * n)]
+idx_val = idx[int(0.6 * n):int(0.8 * n)]
+idx_test = idx[int(0.8 * n):]
 
 features = torch.FloatTensor(features).to(device)
 class_labels = torch.LongTensor(class_labels).to(device)
 idx_train = torch.LongTensor(idx_train).to(device)
 idx_val = torch.LongTensor(idx_val).to(device)
 idx_test = torch.LongTensor(idx_test).to(device)
-
 
 class_labels_train = class_labels[idx_train]
 class_labels_validation = class_labels[idx_val]
@@ -129,16 +118,18 @@ class_labels_test = class_labels[idx_test]
 def random_walk(G, node, walk_length):
     # Simulates a random walk of length "walk_length" starting from node "node"
 
-    #Please insert your code for Task 1 here
+    # Please insert your code for Task 1 here
     walk = [node]
     for i in range(walk_length):
         neighbors = list(G.neighbors(walk[i]))
-        walk.append(neighbors[randint(0, len(neighbors)-1)])
+        walk.append(neighbors[randint(0, len(neighbors) - 1)])
 
     walk = [str(node) for node in walk]
     return walk
 
-print('An example of a random walk is:', random_walk(G,0,5))
+
+print('An example of a random walk is:', random_walk(G, 0, 5))
+
 
 # %% [markdown]
 # The DeepWalk algorithm does not start only a single walk from each node, but several of them.
@@ -151,13 +142,14 @@ def generate_walks(G, num_walks, walk_length):
 
     walks = []
 
-    #Please insert your code for Task 1 here
+    # Please insert your code for Task 1 here
     for i in range(num_walks):
         permuted_nodes = np.random.permutation(G.nodes())
         for node in permuted_nodes:
             walks.append(random_walk(G, node, walk_length))
 
     return walks
+
 
 # %% [markdown]
 # We now ask you to implement the second stage of the DeepWalk algorithm and to then apply the DeepWalk algorithm to the Cora graph. Note that node attributes are not taken into account by the DeepWalk algorithm. 
@@ -175,11 +167,10 @@ def deepwalk(G, num_walks, walk_length, n_dim):
     walks = generate_walks(G, num_walks, walk_length)
 
     print("Training word2vec")
-    
-    #Please insert your code for Task 2 here
+
+    # Please insert your code for Task 2 here
     model = Word2Vec(vector_size=n_dim, window=8, min_count=0, sg=1, workers=8, hs=1)
-    
-    
+
     model.build_vocab(walks)
     model.train(walks, total_examples=model.corpus_count, epochs=5)
 
@@ -189,16 +180,13 @@ def deepwalk(G, num_walks, walk_length, n_dim):
 n_dim = 128
 n_walks = 10
 walk_length = 20
-model = deepwalk(G, n_walks, walk_length, n_dim) 
-
+model = deepwalk(G, n_walks, walk_length, n_dim)
 
 DeepWalk_embeddings = np.empty(shape=(n, n_dim))
 
-#Please insert your code for Task 2 here
+# Please insert your code for Task 2 here
 for idx, node in enumerate(G.nodes()):
     DeepWalk_embeddings[idx, :] = model.wv[str(node)]
-
-
 
 my_pca = PCA(n_components=10)
 my_tsne = TSNE(n_components=2)
@@ -206,23 +194,24 @@ my_tsne = TSNE(n_components=2)
 vecs_pca = my_pca.fit_transform(DeepWalk_embeddings)
 vecs_tsne = my_tsne.fit_transform(vecs_pca)
 
-plt.figure(figsize=(7,7))
+plt.figure(figsize=(7, 7))
 plt.title("TSNE visualisation of the DeepWalk embeddings")
 colours = sns.color_palette("hls", n_class)
-sns.scatterplot(x=vecs_tsne[:,0], y=vecs_tsne[:,1], hue=class_labels.detach().cpu().numpy(), legend='full', palette=colours)
+sns.scatterplot(x=vecs_tsne[:, 0], y=vecs_tsne[:, 1], hue=class_labels.detach().cpu().numpy(), legend='full', palette=colours)
 plt.show()
 
 # %% [markdown]
 # We will further evaluate the quality of the generated embeddings in a supervised node classification task. Specifically, we will feed the generated embeddings into a standard multinomial logisitic regression classifier.
 
 # %%
-X_train = DeepWalk_embeddings[idx_train.detach().cpu().numpy(),:]
-X_test = DeepWalk_embeddings[idx_test.detach().cpu().numpy(),:]
+X_train = DeepWalk_embeddings[idx_train.detach().cpu().numpy(), :]
+X_test = DeepWalk_embeddings[idx_test.detach().cpu().numpy(), :]
 
 clf = LogisticRegression(max_iter=1300)
 clf.fit(X_train, class_labels_train.detach().cpu().numpy())
 y_pred = clf.predict(X_test)
 print("Accuracy using DeepWalk embeddings", accuracy_score(class_labels_test.detach().cpu().numpy(), y_pred))
+
 
 # %% [markdown]
 # ## 2) Graph Convolutional Networks
@@ -250,16 +239,14 @@ print("Accuracy using DeepWalk embeddings", accuracy_score(class_labels_test.det
 
 # %%
 def normalise_adjacency(A):
-    #Please insert your code for Task 3 here
+    # Please insert your code for Task 3 here
     A_with_self_loops = A + sp.identity(A.shape[0])
     degrees = A_with_self_loops.sum(axis=0)
     inv_degrees = np.power(degrees, -0.5)
     D_inv = sp.diags(np.squeeze(np.asarray((inv_degrees))))
 
-
     A_normalised = D_inv @ A_with_self_loops @ D_inv
     return A_normalised
-
 
 
 def sparse_to_torch_sparse(M):
@@ -269,6 +256,7 @@ def sparse_to_torch_sparse(M):
     values = torch.from_numpy(M.data)
     shape = torch.Size(M.shape)
     return torch.sparse.FloatTensor(indices, values, shape)
+
 
 # %% [markdown]
 # You will next implement a [Graph Convolutional Network (GCN)](https://arxiv.org/pdf/1609.02907.pdf) model that consists of three layers.
@@ -313,6 +301,7 @@ def sparse_to_torch_sparse(M):
 
 class GCN(nn.Module):
     """Simple GCN model"""
+
     def __init__(self, n_feat, n_hidden_1, n_hidden_2, n_class, dropout):
         super(GCN, self).__init__()
 
@@ -323,14 +312,14 @@ class GCN(nn.Module):
         self.relu = nn.ReLU()
 
     def forward(self, x_in, adj):
-        
-        #Please insert your code for Task 4 here
+        # Please insert your code for Task 4 here
         x = self.relu(self.fc1(torch.mm(adj, x_in)))
         x = self.dropout(x)
         t = self.relu(self.fc2(torch.mm(adj, x)))
         x = self.fc3(t)
 
         return F.log_softmax(x, dim=1), t
+
 
 # %%
 # Hyperparameters
@@ -340,12 +329,11 @@ n_hidden_2 = 32
 learning_rate = 0.01
 dropout_rate = 0.5
 
-
 # Creates the model and specifies the optimizer
 model = GCN(features.shape[1], n_hidden_1, n_hidden_2, n_class, dropout_rate).to(device)
 optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
-adj = normalise_adjacency(sp.csr_matrix(cora_adjacency)) 
+adj = normalise_adjacency(sp.csr_matrix(cora_adjacency))
 adj = sparse_to_torch_sparse(sp.csr_matrix(cora_adjacency)).to(device)
 
 
@@ -353,19 +341,18 @@ def train(epoch):
     t = time.time()
     model.train()
     optimizer.zero_grad()
-    output,_ = model(features, adj)
+    output, _ = model(features, adj)
     loss_train = F.nll_loss(output[idx_train], class_labels_train)
     acc_train = accuracy_score(torch.argmax(output[idx_train], dim=1).detach().cpu().numpy(), class_labels_train.cpu().numpy())
     loss_train.backward()
     optimizer.step()
 
-    
     model.eval()
-    output,_ = model(features, adj)
+    output, _ = model(features, adj)
 
     loss_val = F.nll_loss(output[idx_val], class_labels_validation)
     acc_val = accuracy_score(torch.argmax(output[idx_val], dim=1).detach().cpu().numpy(), class_labels_validation.cpu().numpy())
-    print('Epoch: {:03d}'.format(epoch+1),
+    print('Epoch: {:03d}'.format(epoch + 1),
           'loss_train: {:.4f}'.format(loss_train.item()),
           'acc_train: {:.4f}'.format(acc_train),
           'loss_val: {:.4f}'.format(loss_val.item()),
@@ -378,12 +365,13 @@ def test():
     output, embeddings = model(features, adj)
     loss_test = F.nll_loss(output[idx_test], class_labels_test)
     acc_test = accuracy_score(torch.argmax(output[idx_test], dim=1).detach().cpu().numpy(), class_labels_test.cpu().numpy())
-    
+
     print("Test set results:",
           "loss= {:.4f}".format(loss_test.item()),
           "accuracy= {:.4f}".format(acc_test))
 
     return embeddings
+
 
 # Train model
 t_total = time.time()
@@ -403,22 +391,17 @@ GCN_embeddings = test()
 # %%
 GCN_embeddings_local = GCN_embeddings.detach().cpu().numpy()
 
-
 my_pca = PCA(n_components=10)
 my_tsne = TSNE(n_components=2)
 
 vecs_pca = my_pca.fit_transform(GCN_embeddings_local)
 vecs_tsne = my_tsne.fit_transform(vecs_pca)
 
-plt.figure(figsize=(7,7))
+plt.figure(figsize=(7, 7))
 plt.title("TSNE visualisation of the GCN embeddings")
 colours = sns.color_palette("hls", len(np.unique(class_labels.detach().cpu().numpy())))
-sns.scatterplot(x=vecs_tsne[:,0], y=vecs_tsne[:,1], hue=class_labels.detach().cpu().numpy(), legend='full', palette=colours)
-
+sns.scatterplot(x=vecs_tsne[:, 0], y=vecs_tsne[:, 1], hue=class_labels.detach().cpu().numpy(), legend='full', palette=colours)
 
 plt.show()
 
 # %%
-
-
-

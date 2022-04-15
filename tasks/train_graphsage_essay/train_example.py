@@ -17,13 +17,14 @@ By the end of this tutorial you will be able to
 
 """
 
-import dgl
+import itertools
+
+import dgl.data
+import numpy as np
+import scipy.sparse as sp
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import itertools
-import numpy as np
-import scipy.sparse as sp
 
 ######################################################################
 # Overview of Link Prediction with GNN
@@ -61,8 +62,6 @@ import scipy.sparse as sp
 # Following the :doc:`introduction <1_introduction>`, this tutorial
 # first loads the Cora dataset.
 #
-
-import dgl.data
 
 dataset = dgl.data.CoraGraphDataset()
 g = dataset[0]

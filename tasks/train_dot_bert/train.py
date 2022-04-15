@@ -1,6 +1,6 @@
-import dgl
+import logging
+
 import hydra
-import numpy as np
 import pytorch_lightning as pl
 import torch
 import torch.nn.functional as torch_f
@@ -12,13 +12,9 @@ from pytorch_lightning.callbacks import TQDMProgressBar
 from pytorch_lightning.utilities.rank_zero import rank_zero_only
 from torch.utils.data import DataLoader, Subset
 from transformers import AutoTokenizer
-import tqdm
 
-from typing import List
-import logging
 from src.models import DotBert
 from src.utils.driver import NetworkDatasetMLPBert
-from src.utils.submmision import generate_submission
 
 
 def compute_train_loss(pred: torch.Tensor, label: torch.Tensor, loss_type: str = "mse"):

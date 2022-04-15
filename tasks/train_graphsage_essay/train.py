@@ -1,20 +1,17 @@
+import pickle
+
 import dgl
 import hydra
 import pytorch_lightning as pl
 import torch
 import torch.nn.functional as torch_f
 import torchmetrics
+import tqdm
 from hydra.utils import to_absolute_path
 from omegaconf import DictConfig
 from pytorch_lightning import loggers as pl_logger
-from pytorch_lightning.callbacks import TQDMProgressBar
-from torch.utils.data import DataLoader
-from transformers import AutoTokenizer
-import pickle
-import tqdm
 
 from src.models import GraphSAGEBundled
-from src.utils.driver import NetworkDatasetGraphSAGEBert
 
 
 def compute_train_loss(pos_score: torch.Tensor, neg_score: torch.Tensor):
@@ -156,6 +153,7 @@ class GraphSolution(pl.LightningModule):
         if self.epoch_idx % self.hydra_config.io.save_interval == 0 and self.epoch_idx != 0:
             with open(f'./epoch={self.epoch_idx}.pkl', 'wb') as f:
                 pickle.dump(self.model.hidden_state, f)
+
 
 @hydra.main(config_path="conf", config_name="config")
 def run(cfg):

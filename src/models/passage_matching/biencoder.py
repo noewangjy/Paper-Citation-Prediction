@@ -1,19 +1,16 @@
 import collections
-from typing import Tuple, List, Dict
+from typing import Tuple, Dict
+
 import torch
 import torch.nn as nn
-from torch import Tensor as T
 import torch.nn.functional as F
-
-from .modeling import BertEncoder
-from .model_utils import CheckpointState
-from .data_utils import Tensorizer
-import pytorch_lightning as pl
-from omegaconf import DictConfig
-
-
+from torch import Tensor as T
 # BiEncoderPassage = collections.namedtuple("BiEncoderPassage", ["authors", "abstract"])
-from transformers import AutoModel, AutoConfig, AutoTokenizer
+from transformers import AutoModel, AutoConfig
+
+from .data_utils import Tensorizer
+from .model_utils import CheckpointState
+from .modeling import BertEncoder
 
 BiEncoderBatch = collections.namedtuple(
     "BiEncoderInput",
@@ -44,9 +41,9 @@ class AutoBiEncoderCat(nn.Module):
         super().__init__()
         self.cfg = cfg
         self.config = AutoConfig.from_pretrained(cfg.model_name_or_path)
-        self.query_model: nn.Module = AutoModel.from_pretrained(cfg.model_name_or_path, config = self.config)
-        self.context_model: nn.Module = AutoModel.from_pretrained(cfg.model_name_or_path, config = self.config)
-        self.classifier: nn.Linear = nn.Linear(self.config.hidden_size*2, 2)
+        self.query_model: nn.Module = AutoModel.from_pretrained(cfg.model_name_or_path, config=self.config)
+        self.context_model: nn.Module = AutoModel.from_pretrained(cfg.model_name_or_path, config=self.config)
+        self.classifier: nn.Linear = nn.Linear(self.config.hidden_size * 2, 2)
 
     def forward(
             self,
@@ -80,7 +77,6 @@ class AutoBiEncoderCat(nn.Module):
             batch: Dict,
             tensorizer: Tensorizer,
     ) -> BiEncoderBatch:
-
         query_passages: Dict = batch["query"]
         context_passages: Dict = batch["context"]
         labels: T = batch["label"]
@@ -116,14 +112,13 @@ class AutoBiEncoderCat(nn.Module):
         return self.state_dict()
 
 
-
 class AutoBiEncoderSum(nn.Module):
     def __init__(self, cfg):
         super().__init__()
         self.cfg = cfg
         self.config = AutoConfig.from_pretrained(cfg.model_name_or_path)
-        self.query_model: nn.Module = AutoModel.from_pretrained(cfg.model_name_or_path, config = self.config)
-        self.context_model: nn.Module = AutoModel.from_pretrained(cfg.model_name_or_path, config = self.config)
+        self.query_model: nn.Module = AutoModel.from_pretrained(cfg.model_name_or_path, config=self.config)
+        self.context_model: nn.Module = AutoModel.from_pretrained(cfg.model_name_or_path, config=self.config)
         self.classifier: nn.Linear = nn.Linear(self.config.hidden_size, 2)
 
     def forward(
@@ -158,7 +153,6 @@ class AutoBiEncoderSum(nn.Module):
             batch: Dict,
             tensorizer: Tensorizer,
     ) -> BiEncoderBatch:
-
         query_passages: Dict = batch["query"]
         context_passages: Dict = batch["context"]
         labels: T = batch["label"]
@@ -199,8 +193,8 @@ class AutoBiEncoderProduct(nn.Module):
         super().__init__()
         self.cfg = cfg
         self.config = AutoConfig.from_pretrained(cfg.model_name_or_path)
-        self.query_model: nn.Module = AutoModel.from_pretrained(cfg.model_name_or_path, config = self.config)
-        self.context_model: nn.Module = AutoModel.from_pretrained(cfg.model_name_or_path, config = self.config)
+        self.query_model: nn.Module = AutoModel.from_pretrained(cfg.model_name_or_path, config=self.config)
+        self.context_model: nn.Module = AutoModel.from_pretrained(cfg.model_name_or_path, config=self.config)
         self.classifier: nn.Linear = nn.Linear(self.config.hidden_size, 2)
 
     def forward(
@@ -235,7 +229,6 @@ class AutoBiEncoderProduct(nn.Module):
             batch: Dict,
             tensorizer: Tensorizer,
     ) -> BiEncoderBatch:
-
         query_passages: Dict = batch["query"]
         context_passages: Dict = batch["context"]
         labels: T = batch["label"]
@@ -271,20 +264,6 @@ class AutoBiEncoderProduct(nn.Module):
         return self.state_dict()
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 class BiEncoder(nn.Module):
     """
     Bi-Encoder model component
@@ -301,7 +280,7 @@ class BiEncoder(nn.Module):
         super(BiEncoder, self).__init__()
         self.query_model = query_model
         self.passage_model = passage_model
-        self.classifier = nn.Linear(query_model.output_size*2, 2)
+        self.classifier = nn.Linear(query_model.output_size * 2, 2)
         self.fix_q_encoder = fix_q_encoder
         self.fix_p_encoder = fix_p_encoder
 
@@ -446,14 +425,3 @@ class BiEncoderLoss(object):
             loss.mul_(loss_scale)
 
         return loss, correct_predictions_count
-
-
-
-
-
-
-
-
-
-
-

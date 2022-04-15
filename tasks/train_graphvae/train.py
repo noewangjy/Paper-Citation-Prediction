@@ -1,17 +1,16 @@
-import scipy.sparse as sp
-import numpy as np
-import torch
-import time
 import os
-import torch.nn.functional as F
-from sklearn.metrics import roc_auc_score
-from sklearn.metrics import average_precision_score
-import networkx as nx
 import pickle
-import sys
-import tqdm
+import time
+
 import hydra
+import numpy as np
+import scipy.sparse as sp
+import torch
+import torch.nn.functional as F
+import tqdm
 from hydra.utils import to_absolute_path
+from sklearn.metrics import average_precision_score
+from sklearn.metrics import roc_auc_score
 
 from src.models import GATModelVAE
 

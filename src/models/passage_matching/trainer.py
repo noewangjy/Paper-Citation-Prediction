@@ -12,20 +12,25 @@
 
 import logging
 import os
-import time
-import timeit
 from typing import Tuple, List
-import numpy as np
-from hydra.utils import to_absolute_path
 
+import numpy as np
 import torch
-from torch import Tensor as T
+import transformers
+from hydra.utils import to_absolute_path
 from torch import nn
 from torch.distributed import init_process_group
+from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampler
+from torch.utils.data.distributed import DistributedSampler
+from torch.utils.tensorboard import SummaryWriter
 # from transformers.utils import logging
-from tqdm import tqdm, trange
+from tqdm import tqdm
+from transformers import (
+    AdamW,
+    get_linear_schedule_with_warmup
+)
 
-from .modeling import BertEncoder, BertTensorizer
+from src.utils.submission import generate_submission
 from .biencoder import (
     BiEncoder,
     BiEncoderLoss,
@@ -34,33 +39,18 @@ from .biencoder import (
     AutoBiEncoderCat,
     AutoBiEncoderProduct
 )
-from .options import (
-    set_seed,
-    setup_logger,
-)
-
-from src.utils.submmision import generate_submission
-
 from .data_utils import Tensorizer, DEFAULT_SELECTOR
-
 from .model_utils import (
     move_to_device,
     CheckpointState,
     get_model_obj,
     load_states_from_checkpoint,
 )
-
-import transformers
-from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampler
-from torch.utils.data.distributed import DistributedSampler
-from transformers import (
-    AdamW,
-    AutoConfig,
-    AutoTokenizer,
-    AutoModel,
-    get_linear_schedule_with_warmup
+from .modeling import BertTensorizer
+from .options import (
+    set_seed,
+    setup_logger,
 )
-from torch.utils.tensorboard import SummaryWriter
 
 logger = logging.getLogger()
 setup_logger(logger)

@@ -1,22 +1,20 @@
-import pickle
-from typing import List, Dict
-from concurrent.futures import ProcessPoolExecutor
 import math
 import multiprocessing as mp
-import os
+import pickle
+from concurrent.futures import ProcessPoolExecutor
+from typing import List, Dict
 
 import dgl
 import dgl.function as fn
 import networkx as nx
 import numpy as np
 import torch
-
 import tqdm
 
-from src.utils.submmision import generate_submission
-from src.utils.io import split_graph
-from src.utils.io import check_md5
 from src.utils.fitter import fit_lr_classifier, infer_lr_classifier
+from src.utils.io import check_md5
+from src.utils.io import split_graph
+from src.utils.submission import generate_submission
 
 
 def compute_distance(graph: dgl.DGLGraph, u, v, max_distance=0x10):

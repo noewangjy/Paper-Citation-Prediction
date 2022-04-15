@@ -1,11 +1,7 @@
 import itertools
-import math
 import pickle
-from typing import Tuple, Dict, List
+from typing import Dict, List
 
-import dgl
-import dgl.function as fn
-import networkx as nx
 import numpy as np
 import torch
 import torch.nn as nn
@@ -13,9 +9,8 @@ import torch.nn.functional as torch_f
 import tqdm
 
 from src.models import GraphSAGEBundled
-from src.utils import generate_submission, split_graph
+from src.utils import split_graph
 from src.utils.io import check_md5
-from src.utils.fitter import calculate_score
 
 
 def compute_train_loss(pos_score: torch.Tensor, neg_score: torch.Tensor):

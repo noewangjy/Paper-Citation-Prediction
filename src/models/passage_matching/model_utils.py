@@ -30,13 +30,13 @@ CheckpointState = collections.namedtuple(
 
 
 def setup_for_distributed_mode(
-    model: nn.Module,
-    optimizer: torch.optim.Optimizer,
-    device: object,
-    n_gpu: int = 1,
-    local_rank: int = -1,
-    fp16: bool = False,
-    fp16_opt_level: str = "O1",
+        model: nn.Module,
+        optimizer: torch.optim.Optimizer,
+        device: object,
+        n_gpu: int = 1,
+        local_rank: int = -1,
+        fp16: bool = False,
+        fp16_opt_level: str = "O1",
 ) -> Tuple[nn.Module, torch.optim.Optimizer]:
     model.to(device)
     if fp16:
@@ -102,13 +102,12 @@ def move_to_device(sample, device):
 
 
 def get_schedule_linear(
-    optimizer,
-    warmup_steps,
-    total_training_steps,
-    steps_shift=0,
-    last_epoch=-1,
+        optimizer,
+        warmup_steps,
+        total_training_steps,
+        steps_shift=0,
+        last_epoch=-1,
 ):
-
     """Create a schedule with a learning rate that decreases linearly after
     linearly increasing during a warmup period.
     """

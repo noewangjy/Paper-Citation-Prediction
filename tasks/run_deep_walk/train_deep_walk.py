@@ -1,32 +1,15 @@
 import logging
+import pickle
+from random import randint
 
 import hydra
-from hydra.utils import to_absolute_path
-import numpy as np
 import networkx as nx
-import scipy.sparse as sp
-from random import randint
-import dgl
-import time
+import numpy as np
 import tqdm
-
-import torch
-import torch.nn as nn
-import torch.optim as optim
-import torch.nn.functional as F
-
 from gensim.models import Word2Vec
-
-from sklearn.manifold import TSNE
-from sklearn.decomposition import PCA
-from sklearn.metrics import accuracy_score, log_loss
-from sklearn.preprocessing import LabelEncoder
-from sklearn.metrics.pairwise import cosine_similarity
+from hydra.utils import to_absolute_path
 from sklearn.linear_model import LogisticRegression
-
-import seaborn as sns
-import matplotlib.pyplot as plt
-import pickle
+from sklearn.metrics import accuracy_score, log_loss
 
 logger = logging.getLogger(__name__)
 

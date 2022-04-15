@@ -1,8 +1,8 @@
-import pickle
 import os
+import pickle
 
 
-def check_md5(path, display:bool = True):
+def check_md5(path, display: bool = True):
     res = os.popen(f'md5sum {path}').readlines()[0].split(' ')[0]
     if display:
         print(f"MD5SUM of {path}: {res}")

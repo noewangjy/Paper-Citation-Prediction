@@ -2,8 +2,9 @@
 # Import all the dependencies
 from gensim.models.doc2vec import Doc2Vec, TaggedDocument
 from nltk.tokenize import word_tokenize
-import nltk
+
 from src.utils.io import read_abstracts
+
 # -------------Let’s prepare data for training our doc2vec model----------------------
 abstracts = read_abstracts('../../data/abstracts.txt')
 

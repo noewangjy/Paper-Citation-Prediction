@@ -1,24 +1,23 @@
-import torch
-from torch import Tensor as T
+import logging
+from typing import Dict, List
+
+import numpy as np
 import pytorch_lightning as pl
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from hydra.utils import to_absolute_path
 from omegaconf import DictConfig
+from torch import Tensor as T
 from torch.utils.data import DataLoader
-import logging
+from tqdm import tqdm
 from transformers import (
     AutoConfig,
-    AutoTokenizer,
     AutoModel,
     PretrainedConfig,
     PreTrainedModel,
-    PreTrainedTokenizer,
 )
-from typing import Dict, List, Tuple
-import numpy as np
-from tqdm import tqdm
-from src.utils.submmision import generate_submission
+
+from src.utils.submission import generate_submission
 
 
 class PassageMatcherPL(pl.LightningModule):

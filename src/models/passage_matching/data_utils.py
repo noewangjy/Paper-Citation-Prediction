@@ -1,9 +1,10 @@
-from torch import Tensor as T
 import json
 import logging
 import pickle
+from typing import List
+
 import jsonlines
-from typing import List, Iterator, Callable, Tuple
+from torch import Tensor as T
 
 logger = logging.getLogger()
 
@@ -94,18 +95,3 @@ class RepStaticPosTokenSelector(RepTokenSelector):
 
 
 DEFAULT_SELECTOR = RepStaticPosTokenSelector()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

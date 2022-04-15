@@ -9,7 +9,6 @@
 Command line arguments utils
 """
 
-
 import logging
 import os
 import random
@@ -22,7 +21,6 @@ import torch
 from omegaconf import DictConfig
 
 logger = logging.getLogger()
-
 
 
 def set_cfg_params_from_state(state: dict, cfg: DictConfig):
@@ -132,7 +130,6 @@ def setup_cfg_gpu(cfg):
 
 
 def _infer_slurm_init(cfg) -> Tuple[str, int, int, int]:
-
     node_list = os.environ.get("SLURM_STEP_NODELIST")
     if node_list is None:
         node_list = os.environ.get("SLURM_JOB_NODELIST")

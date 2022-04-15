@@ -1,9 +1,11 @@
 import pickle
-import numpy as np
-import numba
 
-from src.utils.io import check_md5
+import numba
+import numpy as np
+
 from src.utils.fitter import fit_lr_classifier
+from src.utils.io import check_md5
+
 
 @numba.jit
 def generate_array(cora_hidden_state, u_array, v_array):

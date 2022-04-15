@@ -1,17 +1,16 @@
+import os
 import pickle
 from abc import ABC
-from typing import Dict, Union, List, Tuple, Set
-import os
+from typing import Dict, Union, Set
 
+import dgl
+import dgl.function as fn
 import networkx as nx
 import numpy as np
 import torch
-from tqdm import tqdm
-import dgl
-import dgl.function as fn
-from transformers import PreTrainedTokenizer, AutoTokenizer
-import torch.nn.functional as torch_f
 from torch.utils.data import Dataset
+from tqdm import tqdm
+from transformers import PreTrainedTokenizer, AutoTokenizer
 
 
 def compute_pagerank(graph: dgl.DGLGraph,

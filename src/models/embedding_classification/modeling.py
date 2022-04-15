@@ -1,15 +1,15 @@
-import logging
-
 import numpy as np
+import pytorch_lightning as pl
 import torch
 import torch.nn as nn
-from torch import Tensor as T
 import torch.nn.functional as F
-import pytorch_lightning as pl
-from torch.utils.data import DataLoader
 from omegaconf import DictConfig
+from torch import Tensor as T
+from torch.utils.data import DataLoader
 from tqdm import tqdm
-from src.utils.submmision import generate_submission
+
+from src.utils.submission import generate_submission
+
 
 class EmbeddingClassifier(pl.LightningModule):
     def __init__(self,
@@ -106,20 +106,7 @@ class EmbeddingClassifier(pl.LightningModule):
                     v = sample["v"].to(self.device)
                     y = sample["y"].to(self.device)
                     pred = self(u, v)
-                    test_results.extend(pred[:,1].detach().cpu().numpy())
+                    test_results.extend(pred[:, 1].detach().cpu().numpy())
                     if idx % 10 == 0:
                         pbar.update(10)
         generate_submission(f"./submissions/epoch_{self.epoch_idx}", np.array(test_results))
-
-
-
-
-
-
-
-
-
-
-
-
-

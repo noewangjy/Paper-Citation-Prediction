@@ -1,23 +1,23 @@
 import logging
+import os
 
 import hydra
-import pytorch_lightning.loggers
-import torch
-import os
-from hydra.utils import to_absolute_path
-from omegaconf import DictConfig
 import numpy as np
 import pytorch_lightning as pl
-
+import pytorch_lightning.loggers
+import torch
+from hydra.utils import to_absolute_path
+from omegaconf import DictConfig
 from torch.utils.data import Subset, DataLoader
-from src.utils import NetworkDatasetPassageMatchingPL
-from src.models.passage_matching.biencoder_pl import PassageMatcherPL
 from transformers import (
     AutoConfig,
     PretrainedConfig,
     AutoTokenizer,
     PreTrainedTokenizer
 )
+
+from src.models.passage_matching.biencoder_pl import PassageMatcherPL
+from src.utils import NetworkDatasetPassageMatchingPL
 
 
 @hydra.main(config_path="conf_pl", config_name="config")
