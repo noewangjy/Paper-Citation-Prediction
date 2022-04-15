@@ -15,7 +15,7 @@ import torch.nn.functional as torch_f
 
 
 def compute_pagerank(graph: dgl.DGLGraph,
-                     num_loops: int = 100,
+                     num_loops: int = 20,
                      DAMP: float = 0.85,
                      device: torch.device = torch.device('cpu')):
     # graph = dgl.from_networkx(graph)
@@ -135,7 +135,7 @@ class NetworkDatasetEdge(NetworkDatasetBase):
         self.shortest_path = None
         dgl_graph = dgl.graph((self.data['origin_edges'][:, 0], self.data['origin_edges'][:, 1]))
         self.page_rank = compute_pagerank(dgl_graph)
-        self.features = self.generate_features()
+        self.features = self.load_features()
         # self.katz_centrality = nx.katz_centrality(self.graph, max_iter=1000, tol=1e-5)
 
     @property
@@ -162,13 +162,8 @@ class NetworkDatasetEdge(NetworkDatasetBase):
         return edge_features
 
     def generate_features(self):
-        self.load_shortest_path()
-        features = list()
-        # uv = np.empty(shape=(len(self.u), 2))
-        # uv[:, 0] = self.u
-        # uv[:, 1] = self.v
-        # jaccard_generator = nx.jaccard_coefficient(self.graph, uv)
-        # adamic_adar_generator = nx.adamic_adar_index(self.graph, uv)
+        self.shortest_path = self.get_shortest_path()
+        features = np.zeros(shape=(self.length, 15))
 
         for i in tqdm(range(self.length)):
             u = self.u[i]
@@ -176,15 +171,12 @@ class NetworkDatasetEdge(NetworkDatasetBase):
             pr_u = float(self.page_rank[u])
             pr_v = float(self.page_rank[v])
 
-            features.append([
+            features[i, :] = [
                 self.graph.degree[u] + self.graph.degree[v],  # -0.089
                 abs(self.graph.degree[u] - self.graph.degree[v]),  # -0.034
                 len(self.abstracts[u]) + len(self.abstracts[v]),  # -0.045
                 abs(len(self.abstracts[u]) - len(self.abstracts[v])),  # -0.009
                 len(set(self.abstracts[u].split()).intersection(set(self.abstracts[v].split()))),  # -0.073
-                # len(",".join(self.authors[u])) + len(",".join(self.authors[v])), # useless
-                # abs(len(self.authors[u]) - len(self.authors[v])),  # useless
-                # len(self.abstracts[u].split()) + len(self.abstracts[v].split()),  # useless
                 self.shortest_path[i],
                 len(self._get_common_neighbors(u, v)),  # Common Neighbor
                 self._get_jaccard_coefficient(u, v),    # Jaccard Coefficient, better than common neighbor
@@ -192,16 +184,12 @@ class NetworkDatasetEdge(NetworkDatasetBase):
                 self._get_resource_allocation(u, v),
                 self._get_preferential_attachment(u, v),
                 self._get_salton_cosine_similarity(u, v),
-
                 pr_u + pr_v,
                 abs(pr_u - pr_v),
                 len(set(self.authors[u]).intersection(set(self.authors[v])))
+            ]
 
-            ])
-
-        # norm = np.max(features, axis=10)
-        # features[:, 10] /= norm
-        return np.array(features)
+        return features
 
     def _get_salton_cosine_similarity(self, u: int, v: int):
         common_neighbors = self._get_common_neighbors(u, v)
@@ -258,14 +246,16 @@ class NetworkDatasetEdge(NetworkDatasetBase):
             shortest_paths[i] = shortest_path
         return shortest_paths
 
-    def dump_shortest_path(self):
-        with open(self.dataset_path.split("/")[-1].split(".")[0] + "_sp.pkl", "wb") as f:
-            pickle.dump(self.get_shortest_path(), f)
+    def dump_features(self):
+        with open(self.dataset_path.split("/")[-1].split(".")[0] + "_feature.pkl", "wb") as f:
+            pickle.dump(self.generate_features(), f)
         print("Shortest path successfully dumped")
 
-    def load_shortest_path(self):
-        with open(self.dataset_path.split("/")[-1].split(".")[0] + "_sp.pkl", "rb") as f:
-            self.shortest_path = pickle.load(f)
+    def load_features(self):
+        if not os.path.exists(self.dataset_path.split("/")[-1].split(".")[0] + "_feature.pkl"):
+            self.dump_features()
+        with open(self.dataset_path.split("/")[-1].split(".")[0] + "_feature.pkl", "rb") as f:
+            self.features = pickle.load(f)
 
 
 class NetworkDatasetMLPBert(NetworkDatasetBase):

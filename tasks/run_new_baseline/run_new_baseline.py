@@ -4,6 +4,7 @@ import sklearn.metrics as metrics
 from sklearn.svm import SVC, LinearSVC, LinearSVR, SVR, NuSVR, NuSVC
 import csv
 import numpy as np
+import pickle
 
 def sigmoid(x: np.ndarray)-> np.ndarray:
     return 1/(1+np.exp(-x))
@@ -44,16 +45,16 @@ if __name__ == '__main__':
 
     # # Read test data. Each sample is a pair of nodes
     X_train = train_set.features
-    X_train[:, 10] = sigmoid(X_train[:, 10])
+    # X_train[:, 10] = sigmoid(X_train[:, 10])
     y_train = train_set.y.ravel()
     #
     X_dev = dev_set.features
-    X_dev[:, 10] = sigmoid(X_dev[:, 10])
+    # X_dev[:, 10] = sigmoid(X_dev[:, 10])
     y_dev = dev_set.y.ravel()
 
     # Create the test matrix. Use the same 4 features as above
     X_test = test_set.features
-    X_test[:, 10] = sigmoid(X_test[:, 10])
+    # X_test[:, 10] = sigmoid(X_test[:, 10])
     print('Size of training matrix:', X_test.shape)
 
     # Use logistic regression to predict if two nodes are linked by an edge
@@ -64,7 +65,6 @@ if __name__ == '__main__':
         n_jobs=12,
         verbose=1,
     )
-
 
 
 
